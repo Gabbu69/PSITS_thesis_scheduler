@@ -19,7 +19,7 @@ Verified locally on Windows using Node.js 24.19.0, Next.js 16.4.3, Prisma 6.19.3
 | Sample PDFs | PASS | 1-page three-member group schedule at version 2; 5-page master schedule; all pages rendered and visually reviewed |
 | Long-title / large-roster PDF | PASS | Temporary draft fixture with 100 members across 3 pages; all 100 names extracted and every page visually reviewed |
 | Browser workflow and themes | PASS | Actual login, availability save, explicit title attempt, readiness approval, generation, publication, roster preview and PDF download; light/dark/system; no runtime errors; 390 px viewport has no page overflow |
-| GitHub source publication | PENDING | Push and remote SHA verification follow final browser review |
+| GitHub source publication | PASS | Pushed to `Gabbu69/PSITS_thesis_scheduler` on `main`; local and remote commit SHAs verified at delivery |
 | Public hosted deployment | NOT RUN | Requested deliverable is source publication to the supplied GitHub repository; local server verified separately |
 
 ## Acceptance coverage
