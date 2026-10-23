@@ -42,3 +42,22 @@ The production browser acceptance run additionally created and published PSITS-0
 Current official Next.js requirements, Better Auth's Prisma integration, PostgreSQL transaction locks and React PDF wrapping behavior were checked during implementation. Prisma's supported classic client is used rather than adopting an unneeded release candidate. Prisma's transitive dependency is overridden to patched `deepmerge-ts` 8.0.0; Prisma generation and the production build pass with it. See the [upstream advisory](https://github.com/advisories/GHSA-ggr8-5vv4-36mx) and [release notes](https://github.com/RebeccaStevens/deepmerge-ts/releases/tag/v8.0.0). The package lock contains registry packages, not local-drive dependency URLs.
 
 The initial dependency setup encountered registry resets and system-drive/low-memory constraints. Cached packages were restored with SHA-512 verification, and the final source was tested against the complete restored dependency tree. Those setup failures are not reported as passing application checks.
+
+## Faculty readability and navigation follow-up — October 24, 2026
+
+Applied UI/UX Pro Max guidance to the supplied short-screen sidebar and sign-in screenshots. The interface now uses rem sizes with an 18px base, 16px navigation and form text, and a 14px minimum for secondary labels at the default browser text size. Navigation scrolls independently, offers an explicit More pages / Back to first pages control, and brings the current page into view. Theme controls have visible labels; account details and Sign out remain accessible. Faculty/student dashboards show personal availability and schedule shortcuts with role-appropriate next steps.
+
+| Check on the updated source | Result | Evidence / limits |
+|---|---|---|
+| Production build and TypeScript | PASS | Final optimized Next.js webpack build, TypeScript, prerendering and route tracing completed |
+| Scheduling constraint regression tests | PASS | 11 tests, 0 failures; no scheduling or database logic changed |
+| Sign-in recovery | PASS | Browser-held request aborts after 15 seconds, restores the button and retains entries; real incorrect-password feedback, password visibility, successful login and sign out |
+| Readable text and theme contrast | PASS | Computed body text >=18px and all visible nondecorative text >=14px on checked pages; secondary text against the secondary surface >=4.5:1 in light/dark/system modes |
+| Short-screen sidebar | PASS | 1336×636 viewport; labeled theme controls and Sign out fully reachable; More pages and Back to first pages work; current page has aria-current and is brought into view |
+| Responsive navigation | PASS | 1024×768, 390×844, 390×568 and 668×318 viewports; drawer focus stays inside, Escape restores focus to Menu, navigation closes the drawer; no document overflow |
+| Enlarged text | PASS | 200% root text size on a 1336×636 viewport; adaptive dashboard columns and reachable account controls; reduced CSS viewport checked separately (not claimed as a native browser zoom test) |
+| Faculty/coordinator page layout | PASS | Groups, faculty, rooms, published calendar, reports and notifications at desktop and phone widths; coordinator drafts, waiting list and settings at phone width; no page overflow or browser runtime errors |
+| HTTP authentication, authorization and PDF | PASS | Sequential final rerun of verify-http.mjs: all three roles, student scope/denials, anonymous denial, authorized PDF download and same-origin protection |
+| Direct faculty user trial / assistive technology certification | NOT RUN | Automated browser and visual checks do not establish usability acceptance by actual professors or full WCAG conformance |
+
+The repeatable read-only browser checks are in `scripts/verify-readability.mjs`; reviewed screenshots are in ignored `output/playwright/readability-*.png`. An initial overlapping HTTP/browser run encountered the existing sign-in rate limit; the checks were rerun sequentially and passed with rate limiting retained. The enlarged-text check found a 14px page overflow in the chart panel; adaptive columns fixed it and the final check passed. The earlier full scheduling workflow and database concurrency results above remain the implementation baseline; this follow-up did not reset demo schedules or rerun the mutating workflow verifier.

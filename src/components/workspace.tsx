@@ -18,6 +18,8 @@ import {
   Plus,
   Check,
   ArrowRight,
+  ArrowDown,
+  ArrowUp,
   Sparkles,
   GraduationCap,
   Sun,
@@ -51,6 +53,7 @@ const nav = [
   ["/rooms", "Rooms & venues", DoorOpen],
   ["/drafts", "Schedule workspace", Sparkles],
   ["/calendar", "Published schedule", CalendarDays],
+  ["/notifications", "Notifications", Bell],
   ["/waiting", "Waiting list", TriangleAlert],
   ["/reports", "Reports & exports", FileText],
   ["/settings", "Settings & history", SlidersHorizontal],
@@ -83,6 +86,10 @@ export function Workspace() {
     [busy, setBusy] = useState(false),
     [mobile, setMobile] = useState(false),
     [search, setSearch] = useState("");
+  const [navigationScroll, setNavigationScroll] = useState({
+    overflow: false,
+    atEnd: false,
+  });
   const [modal, setModal] = useState<{
     title: string;
     op: string;
@@ -117,6 +124,88 @@ export function Workspace() {
     setSearch("");
     setMobile(false);
   }, [path]);
+  useEffect(() => {
+    const navigation = document.querySelector<HTMLElement>(".sidebar nav");
+    if (!navigation) return;
+    const active = navigation.querySelector<HTMLElement>(
+      '[aria-current="page"]',
+    );
+    const showActive = () => {
+      if (active && navigation.clientHeight) {
+        const item = active.getBoundingClientRect(),
+          container = navigation.getBoundingClientRect();
+        if (item.bottom > container.bottom)
+          navigation.scrollTop += item.bottom - container.bottom + 6;
+        else if (item.top < container.top)
+          navigation.scrollTop -= container.top - item.top + 6;
+      }
+    };
+    showActive();
+    const update = () => {
+      const overflow =
+        navigation.clientHeight > 0 &&
+        navigation.scrollHeight > navigation.clientHeight + 2;
+      const atEnd =
+        navigation.scrollTop + navigation.clientHeight >=
+        navigation.scrollHeight - 4;
+      setNavigationScroll((previous) =>
+        previous.overflow === overflow && previous.atEnd === atEnd
+          ? previous
+          : { overflow, atEnd },
+      );
+    };
+    const observer = new ResizeObserver(() => {
+      showActive();
+      update();
+    });
+    observer.observe(navigation);
+    navigation.addEventListener("scroll", update, { passive: true });
+    update();
+    return () => {
+      observer.disconnect();
+      navigation.removeEventListener("scroll", update);
+    };
+  }, [path, data?.user.role, mobile]);
+  useEffect(() => {
+    if (!mobile) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const sidebar = document.getElementById("workspace-navigation");
+    const focusable = () =>
+      Array.from(
+        sidebar?.querySelectorAll<HTMLElement>(
+          "a[href],button:not(:disabled)",
+        ) ?? [],
+      );
+    focusable()[0]?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobile(false);
+      if (event.key !== "Tab") return;
+      const items = focusable(),
+        first = items[0],
+        last = items.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    const desktop = window.matchMedia("(min-width: 1025px)");
+    const onDesktop = () => {
+      if (desktop.matches) setMobile(false);
+    };
+    document.addEventListener("keydown", onKey);
+    desktop.addEventListener("change", onDesktop);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKey);
+      desktop.removeEventListener("change", onDesktop);
+      previous?.focus();
+    };
+  }, [mobile]);
   useEffect(() => {
     if (!modal) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -494,18 +583,48 @@ export function Workspace() {
   }
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${mobile ? "mobile-open" : ""}`}>
-        <Link href="/" className="brand">
-          <img src={d.college.logo} alt="College logo" />
-          <div>
-            PSITS<span>DEFENSE SCHEDULER</span>
-          </div>
-        </Link>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
+      {mobile && (
+        <button
+          type="button"
+          className="nav-backdrop"
+          aria-label="Close navigation"
+          onClick={() => setMobile(false)}
+        />
+      )}
+      <aside
+        id="workspace-navigation"
+        className={`sidebar ${mobile ? "mobile-open" : ""}`}
+      >
+        <div className="sidebar-brand">
+          <Link href="/" className="brand">
+            <img src={d.college.logo} alt="College logo" />
+            <div>
+              PSITS<span>DEFENSE SCHEDULER</span>
+            </div>
+          </Link>
+          <button
+            type="button"
+            className="sidebar-close"
+            aria-label="Close menu"
+            onClick={() => setMobile(false)}
+          >
+            <X size={22} aria-hidden="true" />
+          </button>
+        </div>
         <div className="college-label">COLLEGE WORKSPACE</div>
-        <nav>
+        <nav aria-label="Main navigation">
           {visibleNav.map(([url, label, Icon]) => (
-            <Link key={url} href={url} className={path === url ? "active" : ""}>
-              <Icon size={19} />
+            <Link
+              key={url}
+              href={url}
+              className={path === url ? "active" : ""}
+              aria-current={path === url ? "page" : undefined}
+              onClick={() => setMobile(false)}
+            >
+              <Icon size={22} aria-hidden="true" />
               {label}
               {url === "/waiting" && waiting.length > 0 && (
                 <span className="nav-count">{waiting.length}</span>
@@ -513,6 +632,27 @@ export function Workspace() {
             </Link>
           ))}
         </nav>
+        {navigationScroll.overflow && (
+          <button
+            type="button"
+            className="nav-more"
+            onClick={() => {
+              const navigation =
+                document.querySelector<HTMLElement>(".sidebar nav");
+              if (navigation)
+                navigation.scrollTop = navigationScroll.atEnd
+                  ? 0
+                  : navigation.scrollTop + navigation.clientHeight * 0.8;
+            }}
+          >
+            {navigationScroll.atEnd ? (
+              <ArrowUp size={18} aria-hidden="true" />
+            ) : (
+              <ArrowDown size={18} aria-hidden="true" />
+            )}
+            {navigationScroll.atEnd ? "Back to first pages" : "More pages"}
+          </button>
+        )}
         <div className="sidebar-bottom">
           <div className="help-card">
             <ShieldCheck size={23} />
@@ -522,7 +662,7 @@ export function Workspace() {
               <br />A smoother defense day.
             </p>
           </div>
-          <div className="theme-switch" aria-label="Color theme">
+          <div className="theme-switch" role="group" aria-label="Color theme">
             {[
               ["light", Sun],
               ["dark", Moon],
@@ -532,12 +672,35 @@ export function Workspace() {
                 key={value}
                 aria-label={`${value} theme`}
                 title={`${value} theme`}
+                aria-pressed={theme === value}
                 className={theme === value ? "selected" : ""}
                 onClick={() => setTheme(value)}
               >
-                <Icon size={16} />
+                <Icon size={20} aria-hidden="true" />
+                <span>
+                  {value === "system"
+                    ? "System"
+                    : value === "light"
+                      ? "Light"
+                      : "Dark"}
+                </span>
               </button>
             ))}
+          </div>
+          <div className="account-summary">
+            <span className="avatar" aria-hidden="true">
+              {d.user.name.charAt(0)}
+            </span>
+            <span>
+              <strong>{d.user.name}</strong>
+              <small>
+                {admin
+                  ? "Thesis coordinator"
+                  : faculty
+                    ? "Faculty member"
+                    : "Student"}
+              </small>
+            </span>
           </div>
           <button
             className="account"
@@ -550,24 +713,8 @@ export function Workspace() {
               location.href = "/login";
             }}
           >
-            <span className="avatar">
-              {d.user.name
-                .split(" ")
-                .map((n: string) => n[0])
-                .slice(0, 2)
-                .join("")}
-            </span>
-            <span>
-              <strong>{d.user.name}</strong>
-              <small>
-                {admin
-                  ? "Thesis coordinator"
-                  : faculty
-                    ? "Faculty member"
-                    : "Student"}
-              </small>
-            </span>
-            <LogOut size={16} />
+            <LogOut size={20} aria-hidden="true" />
+            Sign out
           </button>
         </div>
       </aside>
@@ -577,9 +724,12 @@ export function Workspace() {
             <button
               className="mobile-menu"
               aria-label="Open navigation"
+              aria-expanded={mobile}
+              aria-controls="workspace-navigation"
               onClick={() => setMobile(!mobile)}
             >
-              <Menu />
+              <Menu aria-hidden="true" />
+              <span>Menu</span>
             </button>
             <span>Workspace</span>
             <ChevronRight size={14} />
@@ -595,12 +745,13 @@ export function Workspace() {
               aria-label="Notifications"
             >
               <Bell size={20} />
+              <span>Notifications</span>
               {d.notifications.some((n: Data) => !n.read) && <i />}
             </Link>
             <span className="avatar small">{d.user.name.charAt(0)}</span>
           </div>
         </header>
-        <main className="content">
+        <main className="content" id="main-content" tabIndex={-1}>
           <div className="page-heading">
             <div>
               <span className="eyebrow">
@@ -633,6 +784,18 @@ export function Workspace() {
                   <Link className="button primary" href="/drafts">
                     <Sparkles size={17} />
                     Generate schedule
+                  </Link>
+                </>
+              )}
+              {path === "/" && !admin && (
+                <>
+                  <Link className="button primary" href="/availability">
+                    <Clock3 size={20} aria-hidden="true" />
+                    My availability
+                  </Link>
+                  <Link className="button secondary" href="/calendar">
+                    <CalendarDays size={20} aria-hidden="true" />
+                    My defense schedule
                   </Link>
                 </>
               )}
@@ -780,43 +943,73 @@ export function Workspace() {
                     <Badge>WORKFLOW</Badge>
                   </div>
                   <div className="workflow">
-                    {[
-                      [
-                        "01",
-                        "Add your records",
-                        "Students, groups, and committee assignments.",
-                        "/groups",
-                      ],
-                      [
-                        "02",
-                        "Find common availability",
-                        "Collect available times in one shared place.",
-                        "/availability",
-                      ],
-                      [
-                        "03",
-                        "Review, then publish",
-                        "Approve readiness and confirm a conflict-free draft.",
-                        "/drafts",
-                      ],
-                      [
-                        "04",
-                        "Share defense day details",
-                        "Export schedules with the full room location.",
-                        "/reports",
-                      ],
-                    ]
-                      .filter((x) => admin || x[0] !== "03")
-                      .map(([n, title, desc, url]) => (
-                        <Link href={url} key={n} className="workflow-row">
-                          <span className="step-number">{n}</span>
-                          <span>
-                            <strong>{title}</strong>
-                            <small>{desc}</small>
-                          </span>
-                          <ArrowUpRight size={18} />
-                        </Link>
-                      ))}
+                    {(admin
+                      ? [
+                          [
+                            "01",
+                            "Add your records",
+                            "Students, groups, and committee assignments.",
+                            "/groups",
+                          ],
+                          [
+                            "02",
+                            "Find common availability",
+                            "Collect available times in one shared place.",
+                            "/availability",
+                          ],
+                          [
+                            "03",
+                            "Review, then publish",
+                            "Approve readiness and confirm a conflict-free draft.",
+                            "/drafts",
+                          ],
+                          [
+                            "04",
+                            "Share defense day details",
+                            "Export schedules with the full room location.",
+                            "/reports",
+                          ],
+                        ]
+                      : [
+                          [
+                            "01",
+                            "Share your availability",
+                            "Add available times and class or meeting conflicts.",
+                            "/availability",
+                          ],
+                          [
+                            "02",
+                            "Check your defense schedule",
+                            "See published dates, times, and room locations.",
+                            "/calendar",
+                          ],
+                          [
+                            "03",
+                            faculty
+                              ? "Review your assigned groups"
+                              : "Review your thesis group",
+                            faculty
+                              ? "Check advisees and committee assignments."
+                              : "Check your members, thesis details, and readiness.",
+                            "/groups",
+                          ],
+                          [
+                            "04",
+                            "Read your updates",
+                            "View schedule changes and coordinator notices.",
+                            "/notifications",
+                          ],
+                        ]
+                    ).map(([n, title, desc, url]) => (
+                      <Link href={url} key={n} className="workflow-row">
+                        <span className="step-number">{n}</span>
+                        <span>
+                          <strong>{title}</strong>
+                          <small>{desc}</small>
+                        </span>
+                        <ArrowUpRight size={18} />
+                      </Link>
+                    ))}
                   </div>
                 </section>
                 <section className="panel">
