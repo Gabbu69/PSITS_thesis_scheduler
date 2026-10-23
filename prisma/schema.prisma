@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id
+  name String
+  email String @unique
+  emailVerified Boolean @default(false)
+  image String?
+  role String @default("STUDENT")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  sessions AuthSession[]
+  accounts Account[]
+  faculty Faculty?
+  student Student?
+  availability Availability[]
+  notifications Notification[]
+  requests ChangeRequest[]
+  participants Participant[]
+  auditEvents AuditEvent[]
+  scheduleVersions ScheduleVersion[]
+}
+model AuthSession {
+  id String @id
+  expiresAt DateTime @db.Timestamptz(3)
+  token String @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  ipAddress String?
+  userAgent String?
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+model Account {
+  id String @id
+  accountId String
+  providerId String
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken String?
+  refreshToken String?
+  idToken String?
+  accessTokenExpiresAt DateTime? @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(3)
+  scope String?
+  password String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+model Verification {
+  id String @id
+  identifier String
+  value String
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+model College {
+  id Int @id @default(1)
+  name String @default("College of Computing - Demonstration")
+  logo String @default("/logo.jpg")
+  timezone String @default("Asia/Manila")
+}
+model Program {
+  id String @id @default(cuid())
+  name String @unique
+  sections Section[]
+}
+model Section {
+  id String @id @default(cuid())
+  name String
+  programId String
+  program Program @relation(fields: [programId], references: [id])
+  groups ThesisGroup[]
+  @@unique([programId, name])
+}
+model Term {
+  id String @id @default(cuid())
+  year String
+  semester String
+  groups ThesisGroup[]
+  memberships Membership[]
+  @@unique([year, semester])
+}
+model Stage {
+  id String @id @default(cuid())
+  name String @unique
+  duration Int @default(45)
+  attempts Attempt[]
+}
+model Rules {
+  id Int @id @default(1)
+  startDate String @default("2026-11-02")
+  endDate String @default("2026-11-06")
+  openTime String @default("08:00")
+  closeTime String @default("17:00")
+  buffer Int @default(15)
+  panelists Int @default(3)
+  chairRequired Boolean @default(true)
+  adviserRequired Boolean @default(true)
+  adviserAsPanelist Boolean @default(false)
+  facultyCanApprove Boolean @default(true)
+}
+model Faculty {
+  id String @id @default(cuid())
+  userId String @unique
+  user User @relation(fields: [userId], references: [id])
+  accepting Boolean @default(true)
+  capacity Int @default(8)
+  capacityUnit String @default("GROUPS")
+  dailyLimit Int @default(4)
+  weeklyLimit Int?
+  assignments Assignment[]
+}
+model Student {
+  id String @id @default(cuid())
+  number String @unique
+  userId String @unique
+  user User @relation(fields: [userId], references: [id])
+  memberships Membership[]
+}
+model ThesisGroup {
+  id String @id @default(cuid())
+  code String @unique
+  title String
+  sectionId String
+  section Section @relation(fields: [sectionId], references: [id])
+  termId String
+  term Term @relation(fields: [termId], references: [id])
+  course String @default("THESIS")
+  active Boolean @default(true)
+  attendees Int @default(0)
+  memberships Membership[]
+  assignments Assignment[]
+  attempts Attempt[]
+}
+model Membership {
+  id String @id @default(cuid())
+  groupId String
+  group ThesisGroup @relation(fields: [groupId], references: [id])
+  studentId String
+  student Student @relation(fields: [studentId], references: [id])
+  termId String
+  term Term @relation(fields: [termId], references: [id])
+  course String
+  active Boolean @default(true)
+  @@unique([groupId, studentId])
+}
+model Assignment {
+  id String @id @default(cuid())
+  groupId String
+  group ThesisGroup @relation(fields: [groupId], references: [id])
+  facultyId String
+  faculty Faculty @relation(fields: [facultyId], references: [id])
+  role String
+  @@unique([groupId, facultyId, role])
+}
+model Attempt {
+  id String @id @default(cuid())
+  groupId String
+  group ThesisGroup @relation(fields: [groupId], references: [id])
+  stageId String
+  stage Stage @relation(fields: [stageId], references: [id])
+  number Int @default(1)
+  readiness String @default("PENDING")
+  requestedAt DateTime @default(now()) @db.Timestamptz(3)
+  readyAt DateTime? @db.Timestamptz(3)
+  priority Int @default(0)
+  waitingReason String?
+  sessions DefenseSession[]
+  @@unique([groupId, stageId, number])
+}
+model Room {
+  id String @id @default(cuid())
+  name String @unique
+  building String
+  location String
+  capacity Int
+  active Boolean @default(true)
+  availability Availability[]
+  sessions DefenseSession[]
+}
+model Availability {
+  id String @id @default(cuid())
+  userId String?
+  user User? @relation(fields: [userId], references: [id])
+  roomId String?
+  room Room? @relation(fields: [roomId], references: [id])
+  kind String
+  date String?
+  weekday Int?
+  effectiveFrom String?
+  effectiveTo String?
+  startTime String
+  endTime String
+  label String @default("")
+}
+model DefenseSession {
+  id String @id @default(cuid())
+  attemptId String
+  attempt Attempt @relation(fields: [attemptId], references: [id])
+  roomId String
+  room Room @relation(fields: [roomId], references: [id])
+  start DateTime @db.Timestamptz(3)
+  end DateTime @db.Timestamptz(3)
+  status String @default("DRAFT")
+  locked Boolean @default(false)
+  attention Boolean @default(false)
+  version Int @default(0)
+  snapshot Json
+  participants Participant[]
+  history ScheduleVersion[]
+}
+model Participant {
+  id String @id @default(cuid())
+  sessionId String
+  session DefenseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role String
+  @@unique([sessionId, userId])
+}
+model ScheduleVersion {
+  id String @id @default(cuid())
+  sessionId String
+  session DefenseSession @relation(fields: [sessionId], references: [id])
+  version Int
+  snapshot Json
+  reason String
+  actorId String
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([sessionId, version])
+}
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  message String
+  read Boolean @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}
+model ChangeRequest {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  kind String
+  details String
+  status String @default("OPEN")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}
+model AuditEvent {
+  id String @id @default(cuid())
+  actorId String
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action String
+  details String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}

@@ -1,0 +1,38 @@
+name: Verify scheduler
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: scheduler
+          POSTGRES_PASSWORD: ci-database-only
+          POSTGRES_DB: thesis_scheduler
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://scheduler:ci-database-only@localhost:5432/thesis_scheduler?schema=public
+      BETTER_AUTH_SECRET: ci-only-fictional-database-secret-at-least-32-characters
+      BETTER_AUTH_URL: http://localhost:3000
+      DEMO_PASSWORD: ci-fictional-demo-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: touch .env
+      - run: npm run db:generate
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run verify
+      - run: npm run build
