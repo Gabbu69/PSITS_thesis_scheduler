@@ -14,6 +14,7 @@ import {
   Bell,
   Search,
   ChevronRight,
+  ChevronDown,
   ArrowUpRight,
   Plus,
   Check,
@@ -22,8 +23,6 @@ import {
   ArrowUp,
   Sparkles,
   GraduationCap,
-  Sun,
-  Moon,
   Monitor,
   LogOut,
   Menu,
@@ -86,6 +85,7 @@ export function Workspace() {
     [busy, setBusy] = useState(false),
     [mobile, setMobile] = useState(false),
     [search, setSearch] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
   const [navigationScroll, setNavigationScroll] = useState({
     overflow: false,
     atEnd: false,
@@ -123,6 +123,7 @@ export function Workspace() {
   useEffect(() => {
     setSearch("");
     setMobile(false);
+    setProfileOpen(false);
   }, [path]);
   useEffect(() => {
     const navigation = document.querySelector<HTMLElement>(".sidebar nav");
@@ -167,19 +168,29 @@ export function Workspace() {
     };
   }, [path, data?.user.role, mobile]);
   useEffect(() => {
+    if (!profileOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (!(event.target as Element).closest(".profile-menu"))
+        setProfileOpen(false);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [profileOpen]);
+  useEffect(() => {
     if (!mobile) return;
     const previous = document.activeElement as HTMLElement | null;
     const sidebar = document.getElementById("workspace-navigation");
     const focusable = () =>
       Array.from(
         sidebar?.querySelectorAll<HTMLElement>(
-          "a[href],button:not(:disabled)",
+          "a[href],button:not(:disabled),select:not(:disabled)",
         ) ?? [],
       );
     focusable()[0]?.focus();
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key === "Escape") setMobile(false);
       if (event.key !== "Tab") return;
       const items = focusable(),
@@ -662,60 +673,100 @@ export function Workspace() {
               <br />A smoother defense day.
             </p>
           </div>
-          <div className="theme-switch" role="group" aria-label="Color theme">
-            {[
-              ["light", Sun],
-              ["dark", Moon],
-              ["system", Monitor],
-            ].map(([value, Icon]: any) => (
-              <button
-                key={value}
-                aria-label={`${value} theme`}
-                title={`${value} theme`}
-                aria-pressed={theme === value}
-                className={theme === value ? "selected" : ""}
-                onClick={() => setTheme(value)}
-              >
-                <Icon size={20} aria-hidden="true" />
-                <span>
-                  {value === "system"
-                    ? "System"
-                    : value === "light"
-                      ? "Light"
-                      : "Dark"}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="account-summary">
-            <span className="avatar" aria-hidden="true">
-              {d.user.name.charAt(0)}
+          <label className="theme-picker" htmlFor="color-theme">
+            <span id="appearance-label">
+              <Monitor size={18} aria-hidden="true" /> Appearance
             </span>
-            <span>
-              <strong>{d.user.name}</strong>
-              <small>
-                {admin
-                  ? "Thesis coordinator"
-                  : faculty
-                    ? "Faculty member"
-                    : "Student"}
-              </small>
-            </span>
-          </div>
-          <button
-            className="account"
-            onClick={async () => {
-              await fetch("/api/auth/sign-out", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: "{}",
-              });
-              location.href = "/login";
+            <select
+              id="color-theme"
+              aria-labelledby="appearance-label"
+              value={theme ?? "system"}
+              onChange={(event) => setTheme(event.target.value)}
+            >
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="system">System</option>
+            </select>
+          </label>
+          <div
+            className="profile-menu"
+            onBlur={(event) => {
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget as Node | null,
+                )
+              )
+                setProfileOpen(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && profileOpen) {
+                event.preventDefault();
+                event.stopPropagation();
+                setProfileOpen(false);
+                event.currentTarget
+                  .querySelector<HTMLButtonElement>(".profile-trigger")
+                  ?.focus();
+              }
             }}
           >
-            <LogOut size={20} aria-hidden="true" />
-            Sign out
-          </button>
+            <button
+              type="button"
+              className="account-summary profile-trigger"
+              aria-expanded={profileOpen}
+              aria-controls="profile-actions"
+              onClick={() => setProfileOpen(!profileOpen)}
+            >
+              <span className="avatar" aria-hidden="true">
+                {d.user.name.charAt(0)}
+              </span>
+              <span className="profile-identity">
+                <strong>{d.user.name}</strong>
+                <small>
+                  {admin
+                    ? "Thesis coordinator"
+                    : faculty
+                      ? "Faculty member"
+                      : "Student"}
+                </small>
+              </span>
+              <ChevronDown
+                size={20}
+                aria-hidden="true"
+                className={
+                  profileOpen ? "profile-chevron expanded" : "profile-chevron"
+                }
+              />
+            </button>
+            {profileOpen && (
+              <div id="profile-actions" className="profile-actions">
+                <button
+                  type="button"
+                  className="account"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/auth/sign-out", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: "{}",
+                      });
+                      if (!response.ok)
+                        throw new Error(
+                          "Could not sign out. Please try again.",
+                        );
+                      location.href = "/login";
+                    } catch {
+                      setError(
+                        "Could not sign out. Please check your connection and try again.",
+                      );
+                    }
+                  }}
+                >
+                  <LogOut size={20} aria-hidden="true" />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
       <div className="main-area">

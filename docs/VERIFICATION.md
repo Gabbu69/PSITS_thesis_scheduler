@@ -61,3 +61,15 @@ Applied UI/UX Pro Max guidance to the supplied short-screen sidebar and sign-in 
 | Direct faculty user trial / assistive technology certification | NOT RUN | Automated browser and visual checks do not establish usability acceptance by actual professors or full WCAG conformance |
 
 The repeatable read-only browser checks are in `scripts/verify-readability.mjs`; reviewed screenshots are in ignored `output/playwright/readability-*.png`. An initial overlapping HTTP/browser run encountered the existing sign-in rate limit; the checks were rerun sequentially and passed with rate limiting retained. The enlarged-text check found a 14px page overflow in the chart panel; adaptive columns fixed it and the final check passed. The earlier full scheduling workflow and database concurrency results above remain the implementation baseline; this follow-up did not reset demo schedules or rerun the mutating workflow verifier.
+
+## Appearance dropdown and profile disclosure — October 24, 2026
+
+Replaced the three theme buttons with a labeled native **Appearance** dropdown containing Light, Dark and System. The profile name/avatar is now a disclosure button; **Sign out** is absent until it is opened. The disclosure exposes its expanded state, closes on outside interaction or focus leaving the profile, and supports Escape with focus restoration. Escape within the profile does not also dismiss the mobile navigation drawer. A failed sign-out request shows an error instead of redirecting as though it succeeded.
+
+- PASS: final production build including TypeScript, prerendering and route tracing.
+- PASS: updated `scripts/verify-readability.mjs` against the production server. Each theme persists through reload; Sign out is hidden initially, opens from the profile, dismisses on outside click, opens with Enter and closes with Escape; actual sign out returns to login.
+- PASS: existing readability, contrast, desktop/phone layouts, short windows, keyboard drawer containment, 200% text resizing and page-overflow checks; no browser runtime errors. Reviewed the closed mobile profile and open desktop profile screenshots.
+- PASS: sequential HTTP regression check for all three account roles, student authorization restrictions, same-origin protection and the authorized PDF download.
+- Updated the older, mutating `scripts/verify-browser.mjs` theme selectors to match the dropdown; that full data-entry/publication script was not rerun for this interface-only change.
+
+Initial local builds encountered system memory exhaustion; the final complete build succeeded using Node 24 with a 512 MB old-space limit and 4 MB semi-space limit. No system settings, unrelated application processes, or scheduling/database records were changed to resolve it.

@@ -72,6 +72,27 @@ async function insideViewport(locator) {
     `Control outside viewport: ${await locator.textContent()}`,
   );
 }
+async function checkProfile(page) {
+  const trigger = page.locator(".profile-trigger");
+  const signOut = page.getByRole("button", { name: "Sign out", exact: true });
+  assert.equal(await signOut.isVisible(), false);
+  await insideViewport(trigger);
+  await trigger.click();
+  await signOut.waitFor();
+  assert.equal(await trigger.getAttribute("aria-expanded"), "true");
+  await insideViewport(signOut);
+  await page.screenshot({ path: "output/playwright/profile-menu-open.png" });
+  await page.locator(".college-label").click();
+  await signOut.waitFor({ state: "hidden" });
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await signOut.waitFor();
+  await signOut.focus();
+  await page.keyboard.press("Escape");
+  await signOut.waitFor({ state: "hidden" });
+  assert.equal(await trigger.getAttribute("aria-expanded"), "false");
+  assert(await trigger.evaluate((el) => el === document.activeElement));
+}
 async function typeCredentials(page, email) {
   await page.getByLabel("College email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
@@ -205,21 +226,22 @@ try {
     .click();
   assert.equal(await nav.evaluate((el) => el.scrollTop), 0);
   for (const theme of ["light", "dark", "system"]) {
-    const button = page.getByRole("button", {
-      name: `${theme} theme`,
-      exact: true,
-    });
-    await insideViewport(button);
-    await button.click();
-    assert.equal(await button.getAttribute("aria-pressed"), "true");
+    const select = page.getByLabel("Appearance", { exact: true });
+    await insideViewport(select);
+    await select.selectOption(theme);
+    assert.equal(await select.inputValue(), theme);
+    await page.reload();
+    await page.locator("#main-content").waitFor();
+    assert.equal(
+      await page.getByLabel("Appearance", { exact: true }).inputValue(),
+      theme,
+    );
     await checkContrast(page);
     await checkReadableText(page);
     await noOverflow(page);
     if (theme !== "system") await screenshot(page, `faculty-${theme}`);
   }
-  await insideViewport(
-    page.getByRole("button", { name: "Sign out", exact: true }),
-  );
+  await checkProfile(page);
   await page
     .getByRole("link", { name: "My availability", exact: true })
     .click();
@@ -271,9 +293,7 @@ try {
         .locator(".sidebar")
         .evaluate((el) => el.contains(document.activeElement)),
     );
-    await insideViewport(
-      page.getByRole("button", { name: "Sign out", exact: true }),
-    );
+    await checkProfile(page);
     await page.keyboard.press("Tab");
     assert(
       await page
@@ -309,9 +329,7 @@ try {
   await page.locator("html").evaluate((el) => {
     el.style.fontSize = "200%";
   });
-  await insideViewport(
-    page.getByRole("button", { name: "Sign out", exact: true }),
-  );
+  await checkProfile(page);
   await noOverflow(page);
   await screenshot(page, "text-200-percent");
   await page.locator("html").evaluate((el) => {
@@ -337,6 +355,7 @@ try {
     }
   }
   await page.setViewportSize({ width: 1336, height: 636 });
+  await page.locator(".profile-trigger").click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.getByRole("heading", { name: "Welcome back." }).waitFor();
   await screenshot(page, "login-light");
@@ -351,9 +370,7 @@ try {
     exact: true,
   });
   await insideViewport(settings);
-  await insideViewport(
-    page.getByRole("button", { name: "Sign out", exact: true }),
-  );
+  await checkProfile(page);
   await settings.click();
   await page
     .getByRole("heading", { name: "Settings & history", exact: true })
@@ -372,7 +389,7 @@ try {
     "PASS: sign-in timeout/retry, incorrect-password feedback, password visibility, real faculty/coordinator login and sign out",
   );
   console.log(
-    "PASS: 18px body, minimum 14px visible text, secondary-text contrast >=4.5 in themes, visible theme labels, footer reachable at 636px height",
+    "PASS: 18px body, minimum 14px visible text, secondary-text contrast >=4.5 in themes, theme dropdown persists, profile hides sign out until opened, footer reachable at 636px height",
   );
   console.log(
     "PASS: drawer keyboard containment, Escape/focus restoration, navigation at 1024/390/668 widths, 318px short viewport, 200% text resizing, no page overflow or runtime errors",

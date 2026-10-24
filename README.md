@@ -97,4 +97,6 @@ For read-only interface regression checks, use `node --env-file=.env scripts/ver
 
 The interface uses larger text for faculty readability: 18px base text, 16px menu/form text and 14px secondary labels. Browser text sizing and zoom remain available. Use **More pages** in a short desktop sidebar, or **Menu** on tablets and phones. Faculty and students can start with **My availability** or **My defense schedule** on their dashboard.
 
+Change Light, Dark or System using the **Appearance** dropdown near the bottom of the sidebar. Click your **name/avatar** to open the profile menu and reveal **Sign out**. The profile menu starts closed and can be dismissed with Escape or by clicking elsewhere.
+
 The first-fit scheduler uses stable priority and a bounded search. It never claims a proven lack of feasible slots. Faculty are assigned by the coordinator; automatic committee matching is a future extension. Preference requests, external email/SMS/calendar integration, manuscript/grading/plagiarism features and bulk import are outside the first implementation.
