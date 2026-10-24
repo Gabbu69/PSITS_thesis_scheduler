@@ -16,6 +16,7 @@ const admin = { id: "coordinator", name: "Alex Rivera", role: "COORDINATOR" };
 const student = { id: "student", name: "Jamie Dela Rosa", role: "STUDENT" };
 const pass = (s: string) => console.log("PASS " + s);
 async function verify() {
+  assert(process.env.ALLOW_TEST_FIXTURES === "1" && /test|ci/.test(new URL(process.env.DATABASE_URL!).pathname), "Use an explicitly enabled, isolated test database.");
   assert(
     await db.user.findUnique({ where: { id: admin.id } }),
     "Seed the fictional demo first",

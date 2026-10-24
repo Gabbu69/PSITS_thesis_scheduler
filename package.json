@@ -12,6 +12,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node --env-file=.env --import tsx prisma/seed.ts",
+    "db:test-fixtures": "node --env-file=.env --import tsx tests/fixtures/seed.ts",
     "db:local": "node scripts/local-postgres.mjs",
     "verify": "node --env-file=.env --import tsx scripts/verify-workflow.ts"
   },
@@ -26,7 +27,8 @@
     "lucide-react": "^0.468.0",
     "next-themes": "^0.4.6",
     "date-fns": "^4.1.0",
-    "date-fns-tz": "^3.2.0"
+    "date-fns-tz": "^3.2.0",
+    "react-qr-code": "^2.2.0"
   },
   "overrides": {
     "deepmerge-ts": "8.0.0"

@@ -1,6 +1,14 @@
+# Current hosting
+
+The current application uses real college accounts and required authenticator codes. The original 25 fictional accounts and associated sample records were removed after private, checksum-verified snapshots passed actual restore checks. Both hosted and normal local databases now start empty. Current verification and rollout details are in [USABILITY_AND_REAL_ACCOUNTS.md](USABILITY_AND_REAL_ACCOUNTS.md).
+
+The material below is the historical deployment receipt for the original demonstration build. Its demo accounts and source revision are not instructions for current use.
+
+---
+
 # Hosted deployment
 
-Live fictional demo: **https://psits-thesis-scheduler.vercel.app**
+Historical demonstration URL (now the real-account application): **https://psits-thesis-scheduler.vercel.app**
 
 Verified on October 24, 2026 (Asia/Manila). Runtime source commit: `e47532c9963b086dd5e26511056e84db8fe902d7`. Vercel deployment: `dpl_GtgqN7K6L4txw98idKLhRJHpCuP6`, reported **READY**, production target. Later documentation-only commits do not alter this runtime build.
 

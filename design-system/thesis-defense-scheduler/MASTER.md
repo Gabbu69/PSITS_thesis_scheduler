@@ -1,6 +1,6 @@
 # Thesis Defense Scheduler design system
 
-The implemented direction follows the supplied PSITS logo: navy, cyan and cool neutral surfaces. This is a college operations dashboard with restrained soft neumorphism. The requested light, dark and system modes take precedence over the initial automated dark-only suggestion.
+The implemented direction follows the supplied PSITS logo: navy, cyan and cool neutral surfaces. This is a task-focused college operations dashboard with quiet surfaces and minimal decoration. The requested light, dark and system modes take precedence over the initial automated dark-only suggestion.
 
 ## Source of truth
 
@@ -22,7 +22,7 @@ The implemented direction follows the supplied PSITS logo: navy, cyan and cool n
 | Borders | #e4ebf1 | #2a4053 |
 | Primary action | #146c99 with white text | Same |
 
-Use green, amber and red status badges with explicit words. The hero uses a navy gradient and an intentionally decorative calendar illustration.
+Use green, amber and red status badges with explicit words. The home screen uses real next actions and upcoming defenses. Decorative hero art and charts were removed after classmate feedback.
 
 ## Layout and interaction
 
@@ -43,3 +43,11 @@ Use green, amber and red status badges with explicit words. The hero uses a navy
 ## Verification
 
 Production-browser screenshots were reviewed at 1440 px desktop and 390 px mobile widths. Light/dark/system preferences were exercised; mobile had no document-level horizontal overflow. The actual workflow was tested from availability through readiness, generation, publication, roster preview and PDF download.
+
+## Usability revision, October 24, 2026
+
+- Students have four main destinations. Teachers also have personal workload. The coordinator has six main destinations; less common pages are under More.
+- Use one main action per screen, short literal labels, actual counts, and useful empty states.
+- Group creation has two steps; multiple selections use checkboxes. Weekly availability saves several days in one transaction.
+- Accounts have a dedicated page. Teachers/students have personal passwords and individual authenticator enrollment. No demo logins appear in the product.
+- Optional explanations, advanced group changes, activity history, and additional schedule views use disclosure controls.

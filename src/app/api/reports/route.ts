@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         status:
           message === "UNAUTHORIZED"
             ? 401
-            : message === "FORBIDDEN"
+            : ["FORBIDDEN", "PASSWORD_CHANGE_REQUIRED", "MFA_SETUP_REQUIRED"].includes(message)
               ? 403
               : 400,
       },

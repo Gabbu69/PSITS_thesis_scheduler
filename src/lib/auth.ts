@@ -1,7 +1,10 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { twoFactor } from "better-auth/plugins";
 import { db } from "./db";
 export const auth = betterAuth({
+  appName: "PSITS Thesis Scheduler",
+  plugins: [twoFactor({ issuer: "PSITS Thesis Scheduler", accountLockout: { enabled: true, maxFailedAttempts: 5, durationSeconds: 900 } })],
   database: prismaAdapter(db, { provider: "postgresql" }),
   session: { modelName: "AuthSession" },
   emailAndPassword: {

@@ -6,6 +6,7 @@ import { coordinator, type Actor } from "./access";
 import { serialized, audit, flagAffected } from "./scheduling";
 import { advisingIssue } from "./constraints";
 import type { Tx } from "./context";
+import { realEmail, passwordSchema } from "./accounts";
 const text = z.string().trim().min(1).max(500);
 const date = z
   .string()
@@ -79,8 +80,11 @@ async function checkCapacity(
 }
 export async function mutateRecord(u: Actor, op: string, input: unknown) {
   return serialized(async (tx) => {
-    if (op === "availability") {
-      const d = windowSchema.parse(input);
+    if (op === "availability" || op === "availabilityBatch") {
+      const entries = op === "availabilityBatch"
+        ? z.array(windowSchema).min(1).max(7).parse(input)
+        : [windowSchema.parse(input)];
+      for (const d of entries) {
       if (u.role !== "COORDINATOR") {
         if (d.roomId || d.userId !== u.id) throw new Error("FORBIDDEN");
       }
@@ -99,9 +103,19 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
         throw new Error("Choose either a date or recurring weekday");
       if (d.effectiveFrom && d.effectiveTo && d.effectiveFrom > d.effectiveTo)
         throw new Error("Invalid effective date range");
-      const result = await tx.availability.create({ data: d });
+      if (d.userId && !await tx.user.count({ where: { id: d.userId } }))
+        throw new Error("Choose an existing person.");
+      const duplicate = await tx.availability.findFirst({ where: {
+        userId: d.userId ?? null, roomId: d.roomId ?? null, kind: d.kind,
+        date: d.date ?? null, weekday: d.weekday ?? null,
+        effectiveFrom: d.effectiveFrom ?? null, effectiveTo: d.effectiveTo ?? null,
+        startTime: d.startTime, endTime: d.endTime,
+      } });
+      if (!duplicate) await tx.availability.create({ data: d });
+      }
       await flagAffected(tx, u);
-      return result;
+      await audit(tx, u, "AVAILABILITY", `${entries.length} time ranges saved`);
+      return { ok: true };
     }
     if (op === "removeAvailability") {
       const { id } = z.object({ id: text }).parse(input);
@@ -151,6 +165,8 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           where: { id: d.attemptId },
         }),
         g = await ownGroup(tx, u, attempt.groupId);
+      if (d.status === "REQUESTED" && attempt.readiness !== "PENDING")
+        throw new Error("This defense has already been submitted for review.");
       if (d.status === "READY" || d.status === "PENDING") {
         const rules = await tx.rules.findUniqueOrThrow({ where: { id: 1 } });
         if (
@@ -183,8 +199,8 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
       const d = z
         .object({
           name: text,
-          email: z.email(),
-          password: z.string().min(12).max(128),
+          email: realEmail,
+          password: passwordSchema,
           role: z.enum(["COORDINATOR", "FACULTY", "STUDENT"]),
           number: z.string().optional(),
         })
@@ -198,6 +214,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           name: d.name,
           email: d.email,
           role: d.role,
+          mustChangePassword: true,
           accounts: {
             create: {
               id: randomUUID(),
@@ -218,7 +235,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
         .object({
           id: text,
           name: text,
-          email: z.email(),
+          email: realEmail,
           number: z.string().optional(),
           password: z.string().max(128).optional(),
         })
@@ -240,6 +257,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           data: { password: await hashPassword(d.password) },
         });
         await tx.authSession.deleteMany({ where: { userId: d.id } });
+        await tx.user.update({ where: { id: d.id }, data: { mustChangePassword: true } });
       }
     } else if (op === "groupDetails") {
       const d = z
@@ -561,6 +579,7 @@ export async function viewData(u: Actor) {
     notifications,
     requests,
     events,
+    users,
   ] = await Promise.all([
     db.college.findUnique({ where: { id: 1 } }),
     db.rules.findUnique({ where: { id: 1 } }),
@@ -638,6 +657,10 @@ export async function viewData(u: Actor) {
     admin
       ? db.auditEvent.findMany({ orderBy: { createdAt: "desc" }, take: 100 })
       : Promise.resolve([]),
+    admin ? db.user.findMany({
+      select: { id: true, name: true, email: true, role: true, mustChangePassword: true, twoFactorEnabled: true, student: { select: { number: true } } },
+      orderBy: { name: "asc" },
+    }) : Promise.resolve([]),
   ]);
   const publicFaculty = faculty.map((f) => ({
     ...f,
@@ -665,5 +688,6 @@ export async function viewData(u: Actor) {
     notifications,
     requests,
     events,
+    users,
   };
 }

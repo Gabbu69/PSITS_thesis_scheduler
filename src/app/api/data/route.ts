@@ -7,12 +7,12 @@ import { instant } from "@/lib/constraints";
 function failure(e: unknown) {
   const message = e instanceof Error ? e.message : "Request failed";
   const status =
-    message === "UNAUTHORIZED" ? 401 : message === "FORBIDDEN" ? 403 : 400;
+    message === "UNAUTHORIZED" ? 401 : ["FORBIDDEN", "PASSWORD_CHANGE_REQUIRED", "MFA_SETUP_REQUIRED"].includes(message) ? 403 : 400;
   const friendly = message.includes("Unique constraint")
     ? "A record already exists. Check duplicate membership, identifier, email, or booking."
     : message.includes("Foreign key")
       ? "A selected record no longer exists. Refresh and try again."
-      : message;
+      : e instanceof z.ZodError ? e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(" ") : message;
   return NextResponse.json({ error: friendly }, { status });
 }
 export async function GET() {

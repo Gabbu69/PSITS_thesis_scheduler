@@ -20,6 +20,80 @@ html {
   --amber: #946313;
   --red: #b54242;
 }
+
+/* Task-focused screens. Keep readable controls while removing decorative density. */
+.entry-page { min-height: 100dvh; display: grid; place-items: center; padding: 32px 16px; background: var(--bg); }
+.entry-card { width: min(100%, 460px); padding: 32px; border: 1px solid var(--border); border-radius: 20px; background: var(--card); box-shadow: 0 12px 40px #1731490a; display: grid; gap: 18px; }
+.entry-card h1 { font-size: 1.75rem; letter-spacing: -.6px; }
+.entry-card p { font-size: 1rem; }
+.entry-card form { display: grid; gap: 16px; }
+.entry-card label { display: grid; gap: 7px; font-size: 1rem; font-weight: 600; }
+.entry-logo { width: 60px; height: 60px; border-radius: 50%; }
+.entry-brand { font-weight: 700; color: var(--text); }
+.entry-card .text-link { justify-content: center; }
+.entry-links { display: grid; gap: 8px; }
+.entry-links button { font-size: 1rem; background: transparent; }
+.auth-qr { padding: 18px; background: white; width: fit-content; margin: auto; border-radius: 12px; }
+.auth-qr svg { max-width: 100%; height: auto; }
+.backup-codes { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; padding: 16px; background: var(--surface); border-radius: 10px; }
+.backup-codes code, .secret-key { font-size: 1rem; overflow-wrap: anywhere; }
+.secret-key { display: block; padding: 12px; user-select: all; }
+.quick-counts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-bottom: 24px; }
+.quick-counts a { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.quick-counts strong { font-size: 1.75rem; }
+.quick-counts span { font-size: 1rem; color: var(--muted); }
+.quick-counts svg { margin-left: auto; color: var(--blue); }
+.task-list { display: grid; }
+.task-list a { display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+.task-list a:last-child { border-bottom: 0; }
+.task-list a > svg:first-child { flex-shrink: 0; color: var(--blue); }
+.task-list a > svg:last-child { margin-left: auto; flex-shrink: 0; }
+.task-list strong, .task-list small { display: block; }
+.task-list small { margin-top: 4px; }
+.task-number { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: var(--soft); color: var(--blue); font-weight: bold; }
+.simple-empty { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 32px 12px; }
+.simple-empty svg { color: var(--muted); }
+.defense-cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); }
+.defense-cards article { padding: 20px; border: 1px solid var(--border); border-radius: 12px; display: grid; gap: 8px; }
+.defense-cards .badge { width: fit-content; }
+.defense-cards h3 { font-weight: bold; }
+.availability-editor, .account-editor { padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 20px 0; display: grid; gap: 20px; }
+.resource-filter { margin: 16px 0; }
+.day-choices { border: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.day-choices legend { width: 100%; margin-bottom: 10px; font-weight: 600; }
+.day-choices label { position: relative; display: flex; gap: 8px; align-items: center; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; min-height: 48px; background: var(--card); cursor: pointer; }
+.day-choices label:has(input:checked) { border-color: var(--blue); background: var(--soft); }
+.day-choices input, .choice-list input { width: 20px; height: 20px; min-height: 20px; flex-shrink: 0; }
+.time-list { display: grid; margin: 20px 0; }
+.time-list > div, .people-list > div { display: flex; gap: 16px; align-items: center; padding: 20px 0; border-bottom: 1px solid var(--border); }
+.time-list > div > div, .people-list > div > div { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.time-list small { display: block; }
+.time-list button, .people-list button { margin-left: auto; }
+.account-search { display: grid; gap: 8px; max-width: 480px; font-size: 1rem; margin: 20px 0; }
+.choice-list { border: 1px solid var(--border); border-radius: 10px; padding: 14px; max-height: 280px; overflow-y: auto; }
+.choice-list legend { padding: 0 4px; font-weight: 600; font-size: 1rem; }
+.choice-list .check-label { padding: 8px 4px; margin: 0; cursor: pointer; }
+details > summary { cursor: pointer; font-size: 1rem; font-weight: 600; min-height: 44px; padding: 10px 0; color: var(--blue); }
+details > summary:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+details > p { margin: 8px 0 16px; }
+.nav-secondary { margin-top: 8px; }
+.nav-secondary > summary { display: flex; align-items: center; gap: 8px; padding: 10px 8px; color: var(--muted); }
+.group-manage { border-top: 1px solid var(--border); margin-top: 16px; }
+.schedule-actions .row-actions { max-width: 220px; padding: 8px 0; }
+.security-card .check-label { display: flex; font-weight: normal; }
+.profile-actions .button { width: 100%; justify-content: flex-start; }
+@media(max-width:600px) {
+  .entry-card { padding: 24px; }
+  .quick-counts { gap: 8px; }
+  .quick-counts a { padding: 14px; gap: 4px; flex-direction: column; align-items: flex-start; }
+  .quick-counts svg { display: none; }
+  .availability-editor, .account-editor { padding: 16px; }
+  .time-list > div, .people-list > div { flex-wrap: wrap; gap: 10px; }
+  .people-list .badge { order: 3; width: 100%; }
+  .time-list .badge { min-width: 100px; }
+  .time-list > div > div { flex-basis: 50%; }
+  .day-choices { gap: 6px; }
+}
 .dark {
   --bg: #111e2b;
   --surface: #162534;
@@ -2472,6 +2546,15 @@ td small {
 }
 
 /* Compact, conventional navigation; only very short windows need native scrolling. */
+[hidden] { display: none !important; }
+.entry-card input, .entry-card select { width: 100%; min-width: 0; }
+.entry-card .password-field input { padding-right: 100px; }
+.group-manage .card-actions button, .schedule-actions button { min-height: 44px; }
+.form-step { margin-bottom: 20px; font-weight: 600; }
+.entry-card .check-label input { width: 20px; height: 20px; min-height: 20px; flex-shrink: 0; }
+.entry-card .check-label { flex-direction: row; align-items: center; }
+.entry-page button:disabled { cursor: default; }
+.nav-secondary > summary::-webkit-details-marker { display: none; }
 .sidebar {
   padding: 12px;
 }

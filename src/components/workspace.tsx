@@ -34,6 +34,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { local } from "@/lib/constraints";
+import { SimpleHome, SimpleAvailability, Accounts } from "./simple-workflows";
 type Data = any;
 type Field = {
   name: string;
@@ -45,17 +46,18 @@ type Field = {
   hint?: string;
 };
 const nav = [
-  ["/", "Overview", LayoutDashboard],
+  ["/", "Home", LayoutDashboard],
   ["/groups", "Thesis groups", GraduationCap],
-  ["/faculty", "Faculty & workload", Users],
+  ["/accounts", "Accounts", Users],
+  ["/faculty", "Teachers", Users],
   ["/availability", "Availability", Clock3],
-  ["/rooms", "Rooms & venues", DoorOpen],
-  ["/drafts", "Schedule workspace", Sparkles],
-  ["/calendar", "Published schedule", CalendarDays],
+  ["/rooms", "Rooms", DoorOpen],
+  ["/drafts", "Create schedule", Sparkles],
+  ["/calendar", "Schedule", CalendarDays],
   ["/notifications", "Notifications", Bell],
   ["/waiting", "Waiting list", TriangleAlert],
-  ["/reports", "Reports & exports", FileText],
-  ["/settings", "Settings & history", SlidersHorizontal],
+  ["/reports", "Reports", FileText],
+  ["/settings", "College setup", SlidersHorizontal],
 ] as const;
 const options = (rows: Data[], label: (r: Data) => string = (r) => r.name) =>
   rows.map((r) => ({ value: r.id, label: label(r) }));
@@ -86,6 +88,7 @@ export function Workspace() {
     [mobile, setMobile] = useState(false),
     [search, setSearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
+  const [formStep, setFormStep] = useState(0);
   const [modal, setModal] = useState<{
     title: string;
     op: string;
@@ -101,6 +104,7 @@ export function Workspace() {
       return;
     }
     const d = await r.json();
+    if (d.error === "PASSWORD_CHANGE_REQUIRED" || d.error === "MFA_SETUP_REQUIRED") { location.href = d.error === "PASSWORD_CHANGE_REQUIRED" ? "/account" : "/security"; return; }
     if (!r.ok) throw new Error(d.error);
     setData(d);
     if (!data)
@@ -224,7 +228,8 @@ export function Workspace() {
       previous?.focus();
     };
   }, [modal, busy]);
-  async function action(op: string, body: Data) {
+  async function action(op: string, body: Data): Promise<boolean> {
+    if (busy) return false;
     setBusy(true);
     setError("");
     setSuccess("");
@@ -233,6 +238,7 @@ export function Workspace() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ op, data: body }),
+        signal: AbortSignal.timeout(60000),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
@@ -243,8 +249,10 @@ export function Workspace() {
       );
       setModal(null);
       await refresh();
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -259,10 +267,12 @@ export function Workspace() {
   const d = data,
     admin = d.user.role === "COORDINATOR",
     faculty = d.user.role === "FACULTY";
-  const visibleNav = nav.filter(
-    ([p]) => admin || !["/drafts", "/settings", "/waiting"].includes(p),
-  );
-  const page = nav.find((n) => n[0] === path)?.[1] ?? "Overview";
+  const allowed = admin ? nav : nav.filter(([p]) => ["/", "/groups", "/availability", "/calendar", "/notifications", "/reports", ...(faculty ? ["/faculty"] : [])].includes(p));
+  const roleLabel = (p: string, label: string) => !admin ? ({ "/groups": faculty ? "My groups" : "My group", "/availability": "My availability", "/calendar": "My schedule", "/faculty": "My workload" } as Record<string,string>)[p] ?? label : label;
+  const mainPaths = admin ? ["/", "/groups", "/calendar", "/availability", "/accounts", "/settings"] : ["/", "/groups", "/availability", "/calendar", ...(faculty ? ["/faculty"] : [])];
+  const visibleNav = mainPaths.map((p) => allowed.find(([url]) => url === p)!);
+  const moreNav = allowed.filter(([p]) => !mainPaths.includes(p) && !["/notifications", "/drafts"].includes(p));
+  const page = roleLabel(path, nav.find((n) => n[0] === path)?.[1] ?? "Page unavailable");
   const groups = d.groups.filter((g: Data) => g.active),
     attempts = groups.flatMap((g: Data) =>
       g.attempts.map((a: Data) => ({ ...a, group: g })),
@@ -289,6 +299,7 @@ export function Workspace() {
     initial: Data = {},
   ) => {
     setError("");
+    setFormStep(0);
     setModal({ title, op, fields, initial });
   };
   const groupForm = () =>
@@ -320,95 +331,6 @@ export function Workspace() {
         value: 0,
       },
     ]);
-  const windowForm = () =>
-    open(
-      "Add availability or blocked period",
-      "availability",
-      [
-        ...(admin
-          ? [
-              {
-                name: "userId",
-                label: "Person (leave blank for room / college block)",
-                options: [
-                  { value: "", label: "No person" },
-                  ...options([
-                    ...d.faculty.map((f: Data) => f.user),
-                    ...d.students.map((s: Data) => s.user),
-                  ]),
-                ],
-                required: false,
-              },
-              {
-                name: "roomId",
-                label: "Room (leave blank for person / college block)",
-                options: [{ value: "", label: "No room" }, ...options(d.rooms)],
-                required: false,
-              },
-            ]
-          : []),
-        {
-          name: "kind",
-          label: "Type",
-          options: [
-            { value: "AVAILABLE", label: "Available" },
-            {
-              value: "BLOCK",
-              label: "Unavailable / class / meeting / holiday",
-            },
-          ],
-        },
-        {
-          name: "date",
-          label: "Specific date (overrides recurring availability)",
-          type: "date",
-          required: false,
-        },
-        {
-          name: "weekday",
-          label: "Or recurring weekday",
-          options: [
-            { value: "", label: "Use specific date" },
-            ...[
-              "Sunday",
-              "Monday",
-              "Tuesday",
-              "Wednesday",
-              "Thursday",
-              "Friday",
-              "Saturday",
-            ].map((label, i) => ({ value: String(i), label })),
-          ],
-          required: false,
-        },
-        {
-          name: "effectiveFrom",
-          label: "Recurring effective from",
-          type: "date",
-          required: false,
-        },
-        {
-          name: "effectiveTo",
-          label: "Recurring effective through",
-          type: "date",
-          required: false,
-        },
-        {
-          name: "startTime",
-          label: "Start time (PHT)",
-          type: "time",
-          value: "08:00",
-        },
-        {
-          name: "endTime",
-          label: "End time (PHT)",
-          type: "time",
-          value: "17:00",
-        },
-        { name: "label", label: "Label / class / reason", required: false },
-      ],
-      admin ? {} : { userId: d.user.id },
-    );
   function sessionEdit(s: Data) {
     open(
       s.status === "DRAFT"
@@ -488,13 +410,13 @@ export function Workspace() {
                             : "blue"
                       }
                     >
-                      {s.status} · v{s.version}
+                      {s.status === "PUBLISHED" ? "Published" : s.status === "DRAFT" ? "Draft" : s.status === "COMPLETED" ? "Completed" : "Cancelled"}
                     </Badge>
                     {s.locked && <small>Locked draft</small>}
                     {s.attention && <Badge tone="amber">Requires review</Badge>}
                   </td>
                   <td>
-                    <div className="row-actions">
+                    <details className="schedule-actions"><summary>{admin ? "Manage" : "History"}</summary><div className="row-actions">
                       {admin && ["DRAFT", "PUBLISHED"].includes(s.status) && (
                         <button onClick={() => sessionEdit(s)}>Edit</button>
                       )}
@@ -550,7 +472,7 @@ export function Workspace() {
                       >
                         History
                       </button>
-                    </div>
+                    </div></details>
                   </td>
                 </tr>
               );
@@ -610,12 +532,13 @@ export function Workspace() {
               onClick={() => setMobile(false)}
             >
               <Icon size={22} aria-hidden="true" />
-              {label}
+              {roleLabel(url, label)}
               {url === "/waiting" && waiting.length > 0 && (
                 <span className="nav-count">{waiting.length}</span>
               )}
             </Link>
           ))}
+          <details className="nav-secondary" key={path} open={moreNav.some(([url]) => url === path)}><summary>More <ChevronDown size={16} aria-hidden="true" /></summary>{moreNav.map(([url,label,Icon]) => <Link key={url} href={url} className={path === url ? "active" : ""} aria-current={path === url ? "page" : undefined}><Icon size={20} aria-hidden="true" />{roleLabel(url,label)}</Link>)}</details>
         </nav>
         <div className="sidebar-bottom">
           <div
@@ -669,6 +592,8 @@ export function Workspace() {
             </button>
             {profileOpen && (
               <div id="profile-actions" className="profile-actions">
+                <Link href="/security" className="button">Authenticator</Link>
+                <Link href="/account" className="button">Change password</Link>
                 <button
                   type="button"
                   className="account"
@@ -717,9 +642,9 @@ export function Workspace() {
             <strong>{page}</strong>
           </div>
           <div className="topbar-right">
-            <span className="term-chip">
+            {d.terms.length > 0 && <span className="term-chip">
               {d.terms[0]?.year} <span>· {d.terms[0]?.semester}</span>
-            </span>
+            </span>}
             <Link
               className="bell"
               href="/notifications"
@@ -764,33 +689,12 @@ export function Workspace() {
         <main className="content" id="main-content" tabIndex={-1}>
           <div className="page-heading">
             <div>
-              <span className="eyebrow">
-                {admin
-                  ? "COORDINATOR WORKSPACE"
-                  : faculty
-                    ? "FACULTY WORKSPACE"
-                    : "STUDENT WORKSPACE"}
-              </span>
-              <h1>
-                {path === "/"
-                  ? `Let’s make room for progress.`
-                  : page === "Overview" && path === "/notifications"
-                    ? "Your notifications"
-                    : page}
-              </h1>
-              <p>
-                {path === "/"
-                  ? "A shared view of your college’s thesis defense journey."
-                  : "Coordinate confidently. All dates and times are in Asia/Manila."}
-              </p>
+              <h1>{path === "/" ? `Hello, ${d.user.name.split(" ")[0]}` : page}</h1>
+              {path === "/" && <p>{admin ? "Your college’s defense schedule, in one place." : "Your group, available times, and defense schedule."}</p>}
             </div>
             <div className="heading-actions">
               {path === "/" && admin && (
                 <>
-                  <Link className="button secondary" href="/reports">
-                    <Download size={16} />
-                    Export reports
-                  </Link>
                   <Link className="button primary" href="/drafts">
                     <Sparkles size={17} />
                     Generate schedule
@@ -803,10 +707,6 @@ export function Workspace() {
                     <Clock3 size={20} aria-hidden="true" />
                     My availability
                   </Link>
-                  <Link className="button secondary" href="/calendar">
-                    <CalendarDays size={20} aria-hidden="true" />
-                    My defense schedule
-                  </Link>
                 </>
               )}
               {path === "/groups" && admin && (
@@ -815,12 +715,8 @@ export function Workspace() {
                   New group
                 </button>
               )}
-              {path === "/availability" && (
-                <button className="primary" onClick={windowForm}>
-                  <Plus size={17} />
-                  Add availability
-                </button>
-              )}
+              {path === "/calendar" && <><Link className="button" href="/reports"><Download size={18} />Download schedule</Link>{admin && <Link className="button primary" href="/drafts"><Plus size={18} />Create schedule</Link>}</>}
+
             </div>
           </div>
           {error && (
@@ -837,267 +733,13 @@ export function Workspace() {
               {success}
             </div>
           )}
-          {path === "/" && (
-            <>
-              <section className="hero-panel">
-                <div>
-                  <Badge tone="hero">A CLEARER PATH TO DEFENSE DAY</Badge>
-                  <h2>
-                    Less chasing schedules.
-                    <br />
-                    More moving forward.
-                  </h2>
-                  <p>
-                    Find the overlap. Bring everyone together.
-                    <br />
-                    Make your next defense day work for everyone.
-                  </p>
-                  <Link
-                    href={admin ? "/drafts" : "/availability"}
-                    className="hero-link"
-                  >
-                    {admin
-                      ? "Open schedule workspace"
-                      : "Share your availability"}
-                    <ArrowRight size={17} />
-                  </Link>
-                </div>
-                <div className="hero-graphic" aria-hidden="true">
-                  <div className="orbit orbit-one" />
-                  <div className="orbit orbit-two" />
-                  <div className="floating-icon">
-                    <GraduationCap size={28} />
-                  </div>
-                  <div className="mini-calendar">
-                    <div className="mini-calendar-head">
-                      NOVEMBER <CalendarDays size={17} />
-                    </div>
-                    <div className="mini-days">
-                      {["M", "T", "W", "T", "F"].map((n, i) => (
-                        <span key={i}>{n}</span>
-                      ))}
-                      {Array.from({ length: 15 }, (_, i) => (
-                        <span
-                          className={
-                            [3, 7, 11].includes(i) ? "day-highlight" : ""
-                          }
-                          key={i + 5}
-                        >
-                          {i + 2}
-                          {[3, 7, 11].includes(i) && <i />}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="mini-label">
-                      <span className="green-dot" /> Everyone, on the same page.
-                    </div>
-                  </div>
-                  <div className="graphic-tag">
-                    <Check size={16} />
-                    One shared schedule
-                  </div>
-                </div>
-              </section>
-              <div className="stats-grid">
-                {[
-                  [
-                    "Thesis groups",
-                    groups.length,
-                    GraduationCap,
-                    "Across your workspace",
-                  ],
-                  [
-                    "Individual students",
-                    new Set(
-                      groups.flatMap((g: Data) =>
-                        g.memberships
-                          .filter((m: Data) => m.active)
-                          .map((m: Data) => m.studentId),
-                      ),
-                    ).size,
-                    Users,
-                    "Every member accounted for",
-                  ],
-                  [
-                    "Approved & ready",
-                    groups.filter((g: Data) =>
-                      g.attempts.some((a: Data) => a.readiness === "READY"),
-                    ).length,
-                    ShieldCheck,
-                    "Ready for scheduling",
-                  ],
-                  [
-                    "Published defenses",
-                    published.length,
-                    CalendarDays,
-                    `${new Set(published.map((s: Data) => s.snapshot.groupId)).size} groups scheduled · ${new Set(waiting.map((a: Data) => a.group.id)).size} waiting`,
-                  ],
-                ].map(([label, value, Icon, caption]: any) => (
-                  <section className="stat-card" key={label}>
-                    <div className="stat-top">
-                      <span>{label}</span>
-                      <Icon size={20} />
-                    </div>
-                    <strong>{value.toString().padStart(2, "0")}</strong>
-                    <small>{caption}</small>
-                  </section>
-                ))}
-              </div>
-              <div className="dashboard-grid">
-                <section className="panel">
-                  <div className="panel-title">
-                    <div>
-                      <h2>Your next steps</h2>
-                      <p>A little coordination goes a long way.</p>
-                    </div>
-                    <Badge>WORKFLOW</Badge>
-                  </div>
-                  <div className="workflow">
-                    {(admin
-                      ? [
-                          [
-                            "01",
-                            "Add your records",
-                            "Students, groups, and committee assignments.",
-                            "/groups",
-                          ],
-                          [
-                            "02",
-                            "Find common availability",
-                            "Collect available times in one shared place.",
-                            "/availability",
-                          ],
-                          [
-                            "03",
-                            "Review, then publish",
-                            "Approve readiness and confirm a conflict-free draft.",
-                            "/drafts",
-                          ],
-                          [
-                            "04",
-                            "Share defense day details",
-                            "Export schedules with the full room location.",
-                            "/reports",
-                          ],
-                        ]
-                      : [
-                          [
-                            "01",
-                            "Share your availability",
-                            "Add available times and class or meeting conflicts.",
-                            "/availability",
-                          ],
-                          [
-                            "02",
-                            "Check your defense schedule",
-                            "See published dates, times, and room locations.",
-                            "/calendar",
-                          ],
-                          [
-                            "03",
-                            faculty
-                              ? "Review your assigned groups"
-                              : "Review your thesis group",
-                            faculty
-                              ? "Check advisees and committee assignments."
-                              : "Check your members, thesis details, and readiness.",
-                            "/groups",
-                          ],
-                          [
-                            "04",
-                            "Read your updates",
-                            "View schedule changes and coordinator notices.",
-                            "/notifications",
-                          ],
-                        ]
-                    ).map(([n, title, desc, url]) => (
-                      <Link href={url} key={n} className="workflow-row">
-                        <span className="step-number">{n}</span>
-                        <span>
-                          <strong>{title}</strong>
-                          <small>{desc}</small>
-                        </span>
-                        <ArrowUpRight size={18} />
-                      </Link>
-                    ))}
-                  </div>
-                </section>
-                <section className="panel">
-                  <div className="panel-title">
-                    <div>
-                      <h2>Scheduling pulse</h2>
-                      <p>Readiness and capacity at a glance.</p>
-                    </div>
-                    <span className="icon-tile small-tile">
-                      <Clock3 size={19} />
-                    </span>
-                  </div>
-                  <div className="pulse-chart">
-                    <div
-                      className="donut"
-                      style={
-                        {
-                          "--progress": `${attempts.length ? Math.round((published.length / attempts.length) * 100) : 0}%`,
-                        } as React.CSSProperties
-                      }
-                    >
-                      <div>
-                        <strong>{published.length}</strong>
-                        <span>published</span>
-                      </div>
-                    </div>
-                    <div className="legend">
-                      <span>
-                        <i className="dot blue-dot" />
-                        Draft sessions <strong>{drafts.length}</strong>
-                      </span>
-                      <span>
-                        <i className="dot green-dot" />
-                        Published <strong>{published.length}</strong>
-                      </span>
-                      <span>
-                        <i className="dot amber-dot" />
-                        Waiting <strong>{waiting.length}</strong>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="capacity-note">
-                    <Users size={17} />
-                    <span>
-                      {
-                        d.faculty.filter((f: Data) => f.load >= f.capacity)
-                          .length
-                      }{" "}
-                      faculty at advising capacity
-                    </span>
-                  </div>
-                </section>
-              </div>
-              <section className="panel">
-                <div className="panel-title">
-                  <div>
-                    <h2>Upcoming defenses</h2>
-                    <p>
-                      The published plan, with everyone and every room accounted
-                      for.
-                    </p>
-                  </div>
-                  <Link href="/calendar" className="text-link">
-                    View schedule <ArrowRight size={15} />
-                  </Link>
-                </div>
-                {scheduleTable(
-                  published
-                    .filter((s: Data) => new Date(s.end) > new Date())
-                    .slice(0, 5),
-                )}
-              </section>
-              <div className="demo-note">
-                Fictional demonstration records · Editable sample rules · No
-                official college policy implied
-              </div>
-            </>
-          )}
+          {path === "/" && <SimpleHome d={d} />}
+          {path === "/accounts" && admin && <Accounts d={d} action={action} busy={busy} edit={(u) => open("Manage account", "editUser", [
+            { name: "name", label: "Full name", value: u.name },
+            { name: "email", label: "Email", type: "email", value: u.email },
+            ...(u.role === "STUDENT" ? [{ name: "number", label: "Student number", value: u.student?.number }] : []),
+            { name: "password", label: "New temporary password (optional)", type: "password", required: false, hint: "At least 12 characters. Their authenticator stays connected." },
+          ], { id: u.id })} />}
           {["/groups", "/faculty", "/rooms", "/calendar", "/waiting"].includes(
             path,
           ) && (
@@ -1121,8 +763,7 @@ export function Workspace() {
               <div className="info-strip">
                 <Users size={19} />
                 <span>
-                  Each group receives one defense session. Readiness approval
-                  and schedule publication are separate steps.
+                  Review the group, then approve it for scheduling.
                 </span>
               </div>
               <div className="group-grid">
@@ -1200,11 +841,12 @@ export function Workspace() {
                           <Badge
                             tone={a.readiness === "READY" ? "green" : "amber"}
                           >
-                            {a.readiness}
+                            {a.readiness === "READY" ? "Ready to schedule" : a.readiness === "REQUESTED" ? "Awaiting review" : "Not submitted"}
                           </Badge>
                         </div>
                         <div className="row-actions">
-                          <button
+                          {!admin && !faculty && a.readiness === "PENDING" && <button
+                            disabled={busy}
                             onClick={() =>
                               action("readiness", {
                                 attemptId: a.id,
@@ -1212,8 +854,8 @@ export function Workspace() {
                               })
                             }
                           >
-                            Request review
-                          </button>
+                            Submit for review
+                          </button>}
                           {(admin ||
                             (faculty &&
                               g.assignments.some(
@@ -1239,7 +881,7 @@ export function Workspace() {
                             </button>
                           )}
                           {admin && (
-                            <button
+                            <details><summary>Priority</summary><button
                               onClick={() =>
                                 open(
                                   "Set approved priority",
@@ -1257,14 +899,14 @@ export function Workspace() {
                                 )
                               }
                             >
-                              Priority
-                            </button>
+                              Change priority
+                            </button></details>
                           )}
                         </div>
                       </div>
                     ))}
                     {admin && (
-                      <div className="card-actions">
+                      <details className="group-manage"><summary>Manage group</summary><div className="card-actions">
                         <button
                           onClick={() =>
                             open(
@@ -1400,7 +1042,7 @@ export function Workspace() {
                         >
                           Archive
                         </button>
-                      </div>
+                      </div></details>
                     )}
                   </section>
                 ))}
@@ -1411,76 +1053,7 @@ export function Workspace() {
                   members.
                 </Empty>
               )}
-              {admin && (
-                <section className="panel">
-                  <div className="panel-title">
-                    <h2>Student directory</h2>
-                    <Badge>{d.students.length} STUDENTS</Badge>
-                  </div>
-                  <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Student identifier</th>
-                          <th>Full name</th>
-                          <th>Email</th>
-                          <th />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filtered(
-                          d.students,
-                          (s) => s.number + s.user.name,
-                        ).map((s) => (
-                          <tr key={s.id}>
-                            <td>{s.number}</td>
-                            <td>{s.user.name}</td>
-                            <td>{s.user.email}</td>
-                            <td>
-                              <button
-                                onClick={() =>
-                                  open(
-                                    "Edit student record",
-                                    "editUser",
-                                    [
-                                      {
-                                        name: "name",
-                                        label: "Full name",
-                                        value: s.user.name,
-                                      },
-                                      {
-                                        name: "email",
-                                        label: "Email",
-                                        type: "email",
-                                        value: s.user.email,
-                                      },
-                                      {
-                                        name: "number",
-                                        label: "Student identifier",
-                                        value: s.number,
-                                      },
-                                      {
-                                        name: "password",
-                                        label:
-                                          "Reset password (optional, 12+ characters)",
-                                        type: "password",
-                                        required: false,
-                                      },
-                                    ],
-                                    { id: s.userId },
-                                  )
-                                }
-                              >
-                                Edit
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              )}
+
             </>
           )}
           {path === "/faculty" && (
@@ -1494,7 +1067,7 @@ export function Workspace() {
                 </span>
               </div>
               <div className="group-grid">
-                {filtered(d.faculty, (f) => f.user.name).map((f) => {
+                {filtered(admin ? d.faculty : d.faculty.filter((f: Data) => f.userId === d.user.id), (f) => f.user.name).map((f) => {
                   const load = f.load,
                     today = local(new Date()),
                     daySessions = sessions.filter(
@@ -1634,162 +1207,7 @@ export function Workspace() {
               </div>
             </>
           )}
-          {path === "/availability" && (
-            <>
-              <div className="info-strip">
-                <Clock3 size={20} />
-                <span>
-                  Share when you are available, then add classes or exceptions.
-                  A date-specific available range replaces that day’s recurring
-                  availability. Blocks always take priority.
-                </span>
-              </div>
-              <div className="availability-summary panel">
-                <h2>Availability submission</h2>
-                <p>
-                  {admin
-                    ? "Review faculty, student, and room availability before generating a draft."
-                    : d.windows.some(
-                          (w: Data) =>
-                            w.userId === d.user.id && w.kind === "AVAILABLE",
-                        )
-                      ? "Your availability has been submitted. Add date-specific exceptions when your plans change."
-                      : "Availability not submitted. Add at least one available interval to be considered for scheduling."}
-                </p>
-                <div className="week-strip">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                    (day, i) => (
-                      <div key={day}>
-                        <strong>{day}</strong>
-                        {d.windows
-                          .filter((w: Data) => w.weekday === i)
-                          .map((w: Data) => (
-                            <span
-                              className={w.kind === "BLOCK" ? "blocked" : ""}
-                              key={w.id}
-                            >
-                              {w.startTime}–{w.endTime}
-                              <small>
-                                {w.kind === "BLOCK" ? "Blocked" : "Available"}
-                              </small>
-                            </span>
-                          ))}
-                      </div>
-                    ),
-                  )}
-                </div>
-              </div>
-              <section className="panel">
-                <div className="panel-title">
-                  <div>
-                    <h2>Available times & exceptions</h2>
-                    <p>
-                      Includes the time needed for room turnover after each
-                      defense.
-                    </p>
-                  </div>
-                  <button
-                    className="secondary"
-                    onClick={() =>
-                      open(
-                        "Suggest a preferred defense slot",
-                        "request",
-                        [
-                          {
-                            name: "details",
-                            label: "Preferred date, time, room, and reason",
-                            type: "textarea",
-                          },
-                        ],
-                        { kind: "PREFERRED_SLOT" },
-                      )
-                    }
-                  >
-                    Suggest a preferred slot
-                  </button>
-                </div>
-                {d.windows.length ? (
-                  <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Person / resource</th>
-                          <th>Applies on</th>
-                          <th>Time · PHT</th>
-                          <th>Type & note</th>
-                          <th />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {d.windows.map((w: Data) => (
-                          <tr key={w.id}>
-                            <td>
-                              {w.userId === d.user.id
-                                ? "You"
-                                : (d.faculty.find(
-                                    (f: Data) => f.userId === w.userId,
-                                  )?.user.name ??
-                                  d.students.find(
-                                    (s: Data) => s.userId === w.userId,
-                                  )?.user.name ??
-                                  d.rooms.find((r: Data) => r.id === w.roomId)
-                                    ?.name ??
-                                  "College-wide")}
-                            </td>
-                            <td>
-                              {w.date ??
-                                [
-                                  "Sunday",
-                                  "Monday",
-                                  "Tuesday",
-                                  "Wednesday",
-                                  "Thursday",
-                                  "Friday",
-                                  "Saturday",
-                                ][w.weekday]}
-                              {w.weekday !== null && (
-                                <small>
-                                  {w.effectiveFrom || "Any date"} →{" "}
-                                  {w.effectiveTo || "No end"}
-                                </small>
-                              )}
-                            </td>
-                            <td>
-                              {w.startTime}–{w.endTime}
-                            </td>
-                            <td>
-                              <Badge
-                                tone={w.kind === "BLOCK" ? "amber" : "green"}
-                              >
-                                {w.kind}
-                              </Badge>
-                              <small>{w.label}</small>
-                            </td>
-                            <td>
-                              {(admin || w.userId === d.user.id) && (
-                                <button
-                                  onClick={() =>
-                                    action("removeAvailability", { id: w.id })
-                                  }
-                                >
-                                  Remove
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <Empty>
-                    Availability not submitted. Use “Add availability” to share
-                    your dates.
-                  </Empty>
-                )}
-              </section>
-            </>
-          )}
+          {path === "/availability" && <SimpleAvailability d={d} action={action} busy={busy} />}
           {path === "/rooms" && (
             <>
               {admin && (
@@ -1883,17 +1301,15 @@ export function Workspace() {
               </div>
             </>
           )}
-          {path === "/drafts" && admin && (
+          {path === "/drafts" && admin && (!d.terms.length || !d.stages.length || !groups.length || !d.rooms.some((r: Data) => r.active)) && <section className="panel"><h2>Finish setup before creating a schedule</h2><p>Add your college records, a thesis group, and an active room first.</p><div className="toolbar"><Link className="button" href="/settings">College setup</Link><Link className="button" href="/groups">Thesis groups</Link><Link className="button" href="/rooms">Rooms</Link></div></section>}
+          {path === "/drafts" && admin && !!d.terms.length && !!d.stages.length && !!groups.length && d.rooms.some((r: Data) => r.active) && (
             <>
               <div className="two-columns">
                 <section className="panel">
                   <div className="panel-title">
                     <div>
-                      <h2>Build a proposed schedule</h2>
-                      <p>
-                        Assigned committees. Common availability. No hard-limit
-                        overrides.
-                      </p>
+                      <h2>Create a draft</h2>
+                      <p>Choose the dates and rooms.</p>
                     </div>
                     <Sparkles size={23} />
                   </div>
@@ -1950,38 +1366,8 @@ export function Workspace() {
                         required
                       />
                     </label>
-                    <label className="span-two">
-                      Available rooms
-                      <select
-                        name="rooms"
-                        multiple
-                        defaultValue={d.rooms
-                          .filter((r: Data) => r.active)
-                          .map((r: Data) => r.id)}
-                      >
-                        {d.rooms.map((r: Data) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name} · {r.capacity} seats
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="span-two">
-                      Eligible groups (optional selection; blank uses all in
-                      term/stage)
-                      <select multiple name="attemptIds">
-                        {attempts.map((a: Data) => (
-                          <option key={a.id} value={a.id}>
-                            {a.group.code} ·{" "}
-                            {
-                              d.stages.find((s: Data) => s.id === a.stageId)
-                                ?.name
-                            }{" "}
-                            · {a.readiness}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <fieldset className="span-two choice-list"><legend>Rooms</legend>{d.rooms.filter((r: Data) => r.active).map((r: Data) => <label className="check-label" key={r.id}><input type="checkbox" name="rooms" value={r.id} defaultChecked />{r.name} · {r.capacity} seats</label>)}{!d.rooms.length && <Link href="/rooms" className="text-link">Add a room first</Link>}</fieldset>
+                    <details className="span-two"><summary>Choose specific groups (optional)</summary><div className="choice-list">{attempts.map((a: Data) => <label className="check-label" key={a.id}><input type="checkbox" name="attemptIds" value={a.id} />{a.group.code} · {d.stages.find((s: Data) => s.id === a.stageId)?.name}</label>)}</div></details>
                     <button disabled={busy} className="primary span-two">
                       <Sparkles size={17} />
                       {busy
@@ -1992,17 +1378,16 @@ export function Workspace() {
                 </section>
                 <section className="panel review-note">
                   <LockKeyhole size={30} />
-                  <h2>You have the final say.</h2>
+                  <h2>Publish your schedule</h2>
                   <p>
-                    Drafts are proposals. Review dates, locations, participants,
-                    and workloads before publication.
+                    Check the draft below, then publish it for everyone to see.
                   </p>
-                  <ul>
+                  <details><summary>Scheduling rules</summary><ul>
                     <li>Published sessions stay fixed.</li>
                     <li>Locked drafts survive regeneration.</li>
                     <li>Publication rechecks current records atomically.</li>
                     <li>Only publication sends official notifications.</li>
-                  </ul>
+                  </ul></details>
                   <div className="metric-row">
                     <span>
                       <strong>{drafts.length}</strong>proposed sessions
@@ -2043,7 +1428,7 @@ export function Workspace() {
                 </div>
                 {scheduleTable(drafts)}
               </section>
-              <section className="panel">
+              <details className="panel"><summary>Check teacher workload</summary>
                 <div className="panel-title">
                   <h2>Workload after proposed scheduling</h2>
                 </div>
@@ -2094,7 +1479,7 @@ export function Workspace() {
                     </tbody>
                   </table>
                 </div>
-              </section>
+              </details>
             </>
           )}
           {path === "/calendar" && (
@@ -2121,13 +1506,10 @@ export function Workspace() {
                 >
                   Request change
                 </button>
-                <Link className="button secondary" href="/reports">
-                  <Download size={16} />
-                  Download schedule
-                </Link>
+
               </div>
               <section className="panel">
-                <div className="calendar-agenda">
+                <details><summary>Day-by-day view</summary><div className="calendar-agenda">
                   {[...new Set(published.map((s: Data) => local(s.start)))].map(
                     (date: any) => (
                       <div className="agenda-day" key={date}>
@@ -2156,6 +1538,7 @@ export function Workspace() {
                     ),
                   )}
                 </div>
+                </details>
                 {scheduleTable(
                   sessions.filter((s: Data) => s.status !== "DRAFT"),
                 )}
@@ -2208,11 +1591,8 @@ export function Workspace() {
             <section className="panel">
               <div className="panel-title">
                 <div>
-                  <h2>Print the plan. Share the details.</h2>
-                  <p>
-                    Exports use authorized database records and retain published
-                    student and location snapshots.
-                  </p>
+                  <h2>Download a schedule</h2>
+                  <p>Choose a report, then preview or download.</p>
                 </div>
                 <FileText size={27} />
               </div>
@@ -2442,85 +1822,26 @@ export function Workspace() {
                   <div>
                     <h2>College & defense rules</h2>
                     <p>
-                      These are editable demonstration settings, not official
-                      college policy.
+                      Set your college’s scheduling requirements.
                     </p>
                   </div>
                   <SlidersHorizontal size={23} />
                 </div>
-                <button
-                  className="secondary"
-                  onClick={() =>
-                    open("Configure college and rules", "settings", [
-                      {
-                        name: "name",
-                        label: "College name",
-                        value: d.college.name,
-                      },
-                      {
-                        name: "logo",
-                        label: "Logo path in public folder",
-                        value: d.college.logo,
-                      },
-                      {
-                        name: "startDate",
-                        label: "Scheduling start",
-                        type: "date",
-                        value: d.rules.startDate,
-                      },
-                      {
-                        name: "endDate",
-                        label: "Scheduling end",
-                        type: "date",
-                        value: d.rules.endDate,
-                      },
-                      {
-                        name: "openTime",
-                        label: "College opening time",
-                        type: "time",
-                        value: d.rules.openTime,
-                      },
-                      {
-                        name: "closeTime",
-                        label: "College closing time",
-                        type: "time",
-                        value: d.rules.closeTime,
-                      },
-                      {
-                        name: "buffer",
-                        label: "Turnover buffer in minutes",
-                        type: "number",
-                        value: d.rules.buffer,
-                      },
-                      {
-                        name: "panelists",
-                        label: "Required panelists",
-                        type: "number",
-                        value: d.rules.panelists,
-                      },
-                      ...[
-                        "chairRequired",
-                        "adviserRequired",
-                        "adviserAsPanelist",
-                        "facultyCanApprove",
-                      ].map((name) => ({
-                        name,
-                        label: (
-                          {
-                            chairRequired: "Panel chair required",
-                            adviserRequired: "Adviser attendance required",
-                            adviserAsPanelist: "Adviser may count as panelist",
-                            facultyCanApprove: "Advisers may approve readiness",
-                          } as any
-                        )[name],
-                        type: "checkbox",
-                        value: d.rules[name],
-                      })),
-                    ])
-                  }
-                >
-                  Edit college rules
-                </button>
+                <div className="toolbar">
+                  <button onClick={() => open("College and defense dates", "settings", [
+                    { name: "name", label: "College name", value: d.college.name },
+                    { name: "startDate", label: "First defense date", type: "date", value: d.rules.startDate },
+                    { name: "endDate", label: "Last defense date", type: "date", value: d.rules.endDate },
+                    { name: "openTime", label: "Start time", type: "time", value: d.rules.openTime },
+                    { name: "closeTime", label: "End time", type: "time", value: d.rules.closeTime },
+                  ], { ...d.rules, name: d.college.name, logo: d.college.logo })}>Edit college and dates</button>
+                  <button onClick={() => open("Defense requirements", "settings", [
+                    { name: "buffer", label: "Break between defenses (minutes)", type: "number", value: d.rules.buffer },
+                    { name: "panelists", label: "Number of panelists", type: "number", value: d.rules.panelists },
+                    ...["chairRequired", "adviserRequired", "adviserAsPanelist", "facultyCanApprove"].map((name) => ({ name, label: ({chairRequired:"Require a panel chair", adviserRequired:"Require the adviser to attend", adviserAsPanelist:"Allow the adviser as a panelist", facultyCanApprove:"Allow advisers to approve readiness"} as Record<string,string>)[name], type: "checkbox", value: d.rules[name] })),
+                  ], { ...d.rules, name: d.college.name, logo: d.college.logo })}>Defense requirements</button>
+                  <Link className="button" href="/rooms">Manage rooms</Link>
+                </div>
                 <div className="settings-grid">
                   <span>
                     Timezone<strong>Asia/Manila</strong>
@@ -2569,36 +1890,6 @@ export function Workspace() {
                   <h2>Manage college records</h2>
                 </div>
                 <div className="toolbar">
-                  <button
-                    className="secondary"
-                    onClick={() =>
-                      open("Create user account", "user", [
-                        { name: "name", label: "Full name" },
-                        { name: "email", label: "Email", type: "email" },
-                        {
-                          name: "password",
-                          label: "Temporary password (12+ characters)",
-                          type: "password",
-                        },
-                        {
-                          name: "role",
-                          label: "Role",
-                          options: [
-                            { value: "STUDENT", label: "Student" },
-                            { value: "FACULTY", label: "Faculty" },
-                            { value: "COORDINATOR", label: "Coordinator" },
-                          ],
-                        },
-                        {
-                          name: "number",
-                          label: "Student identifier (required for students)",
-                          required: false,
-                        },
-                      ])
-                    }
-                  >
-                    Add user / student
-                  </button>
                   <button
                     className="secondary"
                     onClick={() =>
@@ -2666,9 +1957,9 @@ export function Workspace() {
                 </p>
               </section>
               <Requests d={d} action={action} />
-              <section className="panel">
+              <details className="panel"><summary>View activity history</summary>
                 <div className="panel-title">
-                  <h2>Audit history</h2>
+                  <h2>Activity history</h2>
                   <Badge>LAST 100 EVENTS</Badge>
                 </div>
                 <div className="table-wrap">
@@ -2693,7 +1984,7 @@ export function Workspace() {
                     </tbody>
                   </table>
                 </div>
-              </section>
+              </details>
             </>
           )}
           {path === "/notifications" && (
@@ -2790,8 +2081,14 @@ export function Workspace() {
               </div>
             ) : (
               <form
+                noValidate={modal.op === "group"}
                 onSubmit={(e) => {
                   e.preventDefault();
+                  if (modal.op === "group") {
+                    const controls = Array.from(e.currentTarget.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input,select,textarea")).filter((el) => !el.closest("[hidden]"));
+                    if (controls.some((el) => !el.reportValidity())) return;
+                  }
+                  if (modal.op === "group" && formStep === 0) { setFormStep(1); return; }
                   const f = new FormData(e.currentTarget),
                     body = { ...modal.initial };
                   for (const field of modal.fields) {
@@ -2819,68 +2116,25 @@ export function Workspace() {
                                 ? Number(value)
                                 : value;
                   }
+                  const missing = modal.fields.find((field) => field.type === "multi" && field.required !== false && !f.getAll(field.name).length);
+                  if (missing) { setError(`Choose at least one entry for ${missing.label}.`); return; }
                   action(modal.op, body);
                 }}
               >
+                {modal.op === "group" && <p className="form-step">Step {formStep + 1} of 2 · {formStep === 0 ? "Group details" : "Members and defense"}</p>}
                 <div className="form-grid">
-                  {modal.fields.map((f) => (
-                    <label
-                      className={
-                        ["textarea", "multi"].includes(f.type ?? "")
-                          ? "span-two"
-                          : f.type === "checkbox"
-                            ? "check-label"
-                            : ""
-                      }
-                      key={f.name}
-                    >
-                      {f.type !== "checkbox" && f.label}
-                      {f.options ? (
-                        <select
-                          name={f.name}
-                          multiple={f.type === "multi"}
-                          defaultValue={
-                            f.value ?? (f.type === "multi" ? [] : undefined)
-                          }
-                          required={f.required !== false}
-                        >
-                          {f.options.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      ) : f.type === "textarea" ? (
-                        <textarea
-                          name={f.name}
-                          defaultValue={f.value}
-                          required={f.required !== false}
-                          rows={3}
-                        />
-                      ) : (
-                        <input
-                          autoFocus={modal.fields[0] === f}
-                          name={f.name}
-                          type={f.type ?? "text"}
-                          defaultValue={
-                            f.type === "checkbox" ? undefined : (f.value ?? "")
-                          }
-                          defaultChecked={
-                            f.type === "checkbox" ? f.value : undefined
-                          }
-                          required={
-                            f.type !== "checkbox" && f.required !== false
-                          }
-                          min={f.type === "number" ? 0 : undefined}
-                        />
-                      )}
-                      {f.type === "checkbox" && f.label}
-                      {f.type === "multi" && (
-                        <small>
-                          Hold Ctrl / Command to select multiple entries.
-                        </small>
-                      )}
+                  {modal.fields.map((f, index) => f.type === "multi" ? (
+                    <fieldset key={f.name} hidden={modal.op === "group" && (formStep === 0 ? index >= 4 : index < 4)} className="span-two choice-list"><legend>{f.label}</legend>
+                      {f.options?.length ? f.options.map((o) => <label className="check-label" key={o.value}><input type="checkbox" name={f.name} value={o.value} defaultChecked={(f.value ?? []).includes(o.value)} />{o.label}</label>) : <p>No records yet. Add them first.</p>}
                       {f.hint && <small>{f.hint}</small>}
+                    </fieldset>
+                  ) : (
+                    <label key={f.name} hidden={modal.op === "group" && (formStep === 0 ? index >= 4 : index < 4)} className={f.type === "textarea" ? "span-two" : f.type === "checkbox" ? "check-label" : ""}>
+                      {f.type !== "checkbox" && f.label}
+                      {f.options ? <select aria-label={f.label} name={f.name} defaultValue={f.value} required={f.required !== false}>{f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+                      : f.type === "textarea" ? <textarea aria-label={f.label} name={f.name} defaultValue={f.value} required={f.required !== false} rows={3} />
+                      : <input aria-label={f.label} autoFocus={modal.fields[0] === f} name={f.name} type={f.type ?? "text"} defaultValue={f.type === "checkbox" ? undefined : f.value ?? ""} defaultChecked={f.type === "checkbox" ? f.value : undefined} required={f.type !== "checkbox" && f.required !== false} min={f.type === "number" ? 0 : undefined} minLength={f.type === "password" ? 12 : undefined} />}
+                      {f.type === "checkbox" && f.label}{f.hint && <small>{f.hint}</small>}
                     </label>
                   ))}
                 </div>
@@ -2892,8 +2146,9 @@ export function Workspace() {
                   >
                     Cancel
                   </button>
+                  {modal.op === "group" && formStep === 1 && <button type="button" onClick={() => setFormStep(0)}>Back</button>}
                   <button className="primary" disabled={busy}>
-                    {busy ? "Validating…" : "Save & validate"}
+                    {busy ? "Saving…" : modal.op === "group" && formStep === 0 ? "Next: members" : "Save"}
                     <Check size={16} />
                   </button>
                 </div>
