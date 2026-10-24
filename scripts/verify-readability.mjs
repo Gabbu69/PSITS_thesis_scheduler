@@ -82,9 +82,13 @@ async function checkProfile(page) {
   assert.equal(await trigger.getAttribute("aria-expanded"), "true");
   await insideViewport(signOut);
   await page.screenshot({ path: "output/playwright/profile-menu-open.png" });
-  await page.locator(".college-label").click();
+  await page.locator(".sidebar-bottom").click({ position: { x: 1, y: 1 } });
   await signOut.waitFor({ state: "hidden" });
   await trigger.focus();
+  assert(
+    await trigger.evaluate((el) => el === document.activeElement),
+    "Profile should receive keyboard focus",
+  );
   await page.keyboard.press("Enter");
   await signOut.waitFor();
   await signOut.focus();
@@ -212,36 +216,38 @@ try {
       .isVisible(),
   );
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  const morePages = page.getByRole("button", {
-    name: "More pages",
-    exact: true,
-  });
-  await morePages.waitFor();
-  const initialScroll = await nav.evaluate((el) => el.scrollTop);
-  await morePages.click();
-  assert((await nav.evaluate((el) => el.scrollTop)) > initialScroll);
-  await insideViewport(nav.locator("a").last());
-  await page
-    .getByRole("button", { name: "Back to first pages", exact: true })
-    .click();
-  assert.equal(await nav.evaluate((el) => el.scrollTop), 0);
+  assert.equal(
+    await page.getByRole("button", { name: "More pages", exact: true }).count(),
+    0,
+  );
+  assert(
+    await page
+      .locator(".sidebar")
+      .evaluate((el) => el.getBoundingClientRect().width <= 250),
+  );
+  assert(
+    await nav.evaluate((el) => el.scrollHeight <= el.clientHeight + 1),
+    "Faculty links should fit without scrolling at 1336x636",
+  );
+  for (const link of await nav.locator("a").all()) await insideViewport(link);
   for (const theme of ["light", "dark", "system"]) {
-    const select = page.getByLabel("Color theme", { exact: true });
-    assert(await select.evaluate((el) => !!el.closest(".topbar-right")));
-    assert.equal(
-      await page.getByText("Appearance", { exact: true }).count(),
-      0,
-    );
-    const bounds = await select.boundingBox();
-    assert(bounds.width <= 120 && bounds.height >= 44 && bounds.height <= 48);
-    await insideViewport(select);
-    await select.selectOption(theme);
-    assert.equal(await select.inputValue(), theme);
+    const button = page.getByRole("button", {
+      name: theme + " theme",
+      exact: true,
+    });
+    assert(await button.evaluate((el) => !!el.closest(".topbar-right")));
+    await button.click();
+    assert.equal(await button.getAttribute("aria-pressed"), "true");
+    assert.equal((await button.textContent()).trim(), "");
+    const bounds = await button.boundingBox();
+    assert(bounds.width === 44 && bounds.height === 44);
     await page.reload();
     await page.locator("#main-content").waitFor();
     assert.equal(
-      await page.getByLabel("Color theme", { exact: true }).inputValue(),
-      theme,
+      await page
+        .getByRole("button", { name: theme + " theme", exact: true })
+        .getAttribute("aria-pressed"),
+      "true",
     );
     await checkContrast(page);
     await checkReadableText(page);
@@ -396,7 +402,7 @@ try {
     "PASS: sign-in timeout/retry, incorrect-password feedback, password visibility, real faculty/coordinator login and sign out",
   );
   console.log(
-    "PASS: 18px body, minimum 14px visible text, secondary-text contrast >=4.5 in themes, theme dropdown persists, profile hides sign out until opened, footer reachable at 636px height",
+    "PASS: 18px body, minimum 14px visible text, secondary-text contrast >=4.5 in themes, theme icon buttons persist, profile hides sign out until opened, footer reachable at 636px height",
   );
   console.log(
     "PASS: drawer keyboard containment, Escape/focus restoration, navigation at 1024/390/668 widths, 318px short viewport, 200% text resizing, no page overflow or runtime errors",

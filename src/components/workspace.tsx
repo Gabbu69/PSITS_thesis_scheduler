@@ -19,8 +19,9 @@ import {
   Plus,
   Check,
   ArrowRight,
-  ArrowDown,
-  ArrowUp,
+  Sun,
+  Moon,
+  Monitor,
   Sparkles,
   GraduationCap,
   LogOut,
@@ -85,10 +86,6 @@ export function Workspace() {
     [mobile, setMobile] = useState(false),
     [search, setSearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
-  const [navigationScroll, setNavigationScroll] = useState({
-    overflow: false,
-    atEnd: false,
-  });
   const [modal, setModal] = useState<{
     title: string;
     op: string;
@@ -141,31 +138,10 @@ export function Workspace() {
       }
     };
     showActive();
-    const update = () => {
-      const overflow =
-        navigation.clientHeight > 0 &&
-        navigation.scrollHeight > navigation.clientHeight + 2;
-      const atEnd =
-        navigation.scrollTop + navigation.clientHeight >=
-        navigation.scrollHeight - 4;
-      setNavigationScroll((previous) =>
-        previous.overflow === overflow && previous.atEnd === atEnd
-          ? previous
-          : { overflow, atEnd },
-      );
-    };
-    const observer = new ResizeObserver(() => {
-      showActive();
-      update();
-    });
+    const observer = new ResizeObserver(showActive);
     observer.observe(navigation);
-    navigation.addEventListener("scroll", update, { passive: true });
-    update();
-    return () => {
-      observer.disconnect();
-      navigation.removeEventListener("scroll", update);
-    };
-  }, [path, data?.user.role, mobile]);
+    return () => observer.disconnect();
+  }, [path, data?.user.role, mobile, profileOpen]);
   useEffect(() => {
     if (!profileOpen) return;
     const dismiss = (event: PointerEvent) => {
@@ -624,7 +600,6 @@ export function Workspace() {
             <X size={22} aria-hidden="true" />
           </button>
         </div>
-        <div className="college-label">COLLEGE WORKSPACE</div>
         <nav aria-label="Main navigation">
           {visibleNav.map(([url, label, Icon]) => (
             <Link
@@ -642,36 +617,7 @@ export function Workspace() {
             </Link>
           ))}
         </nav>
-        {navigationScroll.overflow && (
-          <button
-            type="button"
-            className="nav-more"
-            onClick={() => {
-              const navigation =
-                document.querySelector<HTMLElement>(".sidebar nav");
-              if (navigation)
-                navigation.scrollTop = navigationScroll.atEnd
-                  ? 0
-                  : navigation.scrollTop + navigation.clientHeight * 0.8;
-            }}
-          >
-            {navigationScroll.atEnd ? (
-              <ArrowUp size={18} aria-hidden="true" />
-            ) : (
-              <ArrowDown size={18} aria-hidden="true" />
-            )}
-            {navigationScroll.atEnd ? "Back to first pages" : "More pages"}
-          </button>
-        )}
         <div className="sidebar-bottom">
-          <div className="help-card">
-            <ShieldCheck size={23} />
-            <strong>Better together.</strong>
-            <p>
-              Shared availability.
-              <br />A smoother defense day.
-            </p>
-          </div>
           <div
             className="profile-menu"
             onBlur={(event) => {
@@ -783,17 +729,36 @@ export function Workspace() {
               <span>Notifications</span>
               {d.notifications.some((n: Data) => !n.read) && <i />}
             </Link>
-            <select
-              className="header-theme"
+            <div
+              className="header-themes"
+              role="group"
               aria-label="Color theme"
-              title="Color theme"
-              value={theme ?? "system"}
-              onChange={(event) => setTheme(event.target.value)}
             >
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="system">System</option>
-            </select>
+              {(
+                [
+                  ["light", Sun],
+                  ["dark", Moon],
+                  ["system", Monitor],
+                ] as const
+              ).map(([mode, Icon]) => (
+                <button
+                  type="button"
+                  key={mode}
+                  aria-label={mode + " theme"}
+                  title={
+                    mode === "light"
+                      ? "Light mode"
+                      : mode === "dark"
+                        ? "Dark mode"
+                        : "Use system theme"
+                  }
+                  aria-pressed={theme === mode}
+                  onClick={() => setTheme(mode)}
+                >
+                  <Icon size={20} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
           </div>
         </header>
         <main className="content" id="main-content" tabIndex={-1}>

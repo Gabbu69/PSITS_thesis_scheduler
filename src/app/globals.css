@@ -5,7 +5,7 @@ html {
   font-size: 100%;
 }
 :root {
-  --sidebar-width: 18.5rem;
+  --sidebar-width: 15.5rem;
   --bg: #f0f4f8;
   --surface: #f8fafc;
   --card: #fff;
@@ -1966,15 +1966,29 @@ select[multiple] {
   padding: 12px 4px 0;
   border-top: 1px solid var(--border);
 }
-.header-theme {
-  width: 7rem;
+.header-themes {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.header-themes button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
   min-height: 44px;
-  padding: 8px 10px;
-  font-size: 1rem;
-  font-weight: 600;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.header-themes button[aria-pressed="true"] {
   background: var(--card);
-  cursor: pointer;
-  flex-shrink: 0;
+  color: var(--blue);
+  box-shadow: 0 1px 4px #12344e20;
 }
 .profile-menu {
   border-top: 1px solid var(--border);
@@ -2454,5 +2468,68 @@ td small {
   .sidebar nav {
     flex: none;
     overflow-y: visible;
+  }
+}
+
+/* Compact, conventional navigation; only very short windows need native scrolling. */
+.sidebar {
+  padding: 12px;
+}
+.sidebar-brand {
+  margin-bottom: 8px;
+  min-height: 44px;
+}
+.sidebar .brand {
+  gap: 8px;
+  padding: 0 4px;
+  font-size: 1.375rem;
+}
+.sidebar .brand img {
+  width: 36px;
+  height: 36px;
+}
+.sidebar .brand span {
+  letter-spacing: 0;
+  font-size: 0.875rem;
+}
+.sidebar nav {
+  padding: 4px 0;
+  gap: 0;
+}
+.sidebar nav a {
+  min-height: 44px;
+  padding: 9px 8px;
+  gap: 10px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.sidebar nav a svg {
+  width: 20px;
+  height: 20px;
+}
+.sidebar-bottom {
+  margin-top: 0;
+  padding: 8px 0 0;
+}
+.profile-menu {
+  border-top: 0;
+  padding-top: 0;
+}
+.profile-trigger {
+  padding: 8px 4px;
+}
+.topbar-right {
+  margin-left: auto;
+}
+@media (max-width: 600px) {
+  .topbar-right {
+    gap: 8px;
+  }
+  .topbar-right .bell span {
+    display: none;
+  }
+  .topbar-right .bell {
+    min-width: 44px;
+    justify-content: center;
   }
 }

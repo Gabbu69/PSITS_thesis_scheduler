@@ -26,12 +26,12 @@ try {
   await page
     .getByRole("heading", { name: "Let’s make room for progress." })
     .waitFor();
-  await page.getByLabel("Color theme", { exact: true }).selectOption("light");
+  await page.getByRole("button", { name: "light theme", exact: true }).click();
   await page.screenshot({
     path: "output/playwright/dashboard-light.png",
     fullPage: true,
   });
-  await page.getByLabel("Color theme", { exact: true }).selectOption("dark");
+  await page.getByRole("button", { name: "dark theme", exact: true }).click();
   await page.screenshot({
     path: "output/playwright/dashboard-dark.png",
     fullPage: true,
@@ -39,7 +39,7 @@ try {
   assert(
     await page.locator("html").evaluate((el) => el.classList.contains("dark")),
   );
-  await page.getByLabel("Color theme", { exact: true }).selectOption("system");
+  await page.getByRole("button", { name: "system theme", exact: true }).click();
   await page.getByRole("link", { name: "Availability", exact: true }).click();
   await page
     .getByRole("button", { name: "Add availability", exact: true })
