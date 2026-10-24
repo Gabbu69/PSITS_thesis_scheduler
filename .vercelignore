@@ -1,0 +1,13 @@
+.git
+.next
+.postgres
+.env
+.env.*
+node_modules
+tmp
+output
+.playwright-cli
+*.log
+*.tsbuildinfo
+.agents
+skills-lock.json
