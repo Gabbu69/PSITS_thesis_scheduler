@@ -4,6 +4,8 @@ A local-first web application for one college: students and professors submit av
 
 All demonstration names, student identifiers, theses and conflicts are fictional. Default limits (8 active advising groups, 4 defenses/day, 45 minutes + 15 minutes turnover, 3 panelists) are editable examples, not college policy.
 
+Live fictional demo: **https://psits-thesis-scheduler.vercel.app**. Hosted on Vercel with Neon PostgreSQL; the local setup remains supported. The supplied PSITS logo appears on the login page, sidebar, browser tab and app icons. See [hosted deployment and verification](docs/HOSTED_DEPLOYMENT.md). Hosted demo passwords are private and are not committed to this repository.
+
 ## Requirements
 
 - Node.js 22.12+ or a newer supported Node LTS; npm; Git.
@@ -83,7 +85,7 @@ npm run build
 npm start
 ```
 
-Set the correct `BETTER_AUTH_URL`, HTTPS and strong secrets before deployment. Back up PostgreSQL; keep database and auth credentials private. This repository push is source publication, not a public hosted deployment.
+Set the correct `BETTER_AUTH_URL`, HTTPS and strong secrets before deployment. Back up PostgreSQL; keep database and auth credentials private. GitHub source publication and a successful hosted deployment are separate checks; the verified live deployment is documented below.
 
 ## Implementation notes
 
