@@ -73,3 +73,9 @@ Replaced the three theme buttons with a labeled native **Appearance** dropdown c
 - Updated the older, mutating `scripts/verify-browser.mjs` theme selectors to match the dropdown; that full data-entry/publication script was not rerun for this interface-only change.
 
 Initial local builds encountered system memory exhaustion; the final complete build succeeded using Node 24 with a 512 MB old-space limit and 4 MB semi-space limit. No system settings, unrelated application processes, or scheduling/database records were changed to resolve it.
+
+## Compact top-right theme dropdown — October 24, 2026
+
+Moved the native theme dropdown from the sidebar to the far right of the header and removed the visible Appearance label. It displays only the selected Light, Dark or System mode, uses the accessible name Color theme, and measures 112px wide by 44px tall at the default text size. The profile disclosure and hidden Sign out behavior are retained. On narrow phones the notification link keeps its icon and accessible name while its visible text is hidden to leave room for the dropdown.
+
+PASS: final production build including TypeScript; updated read-only browser suite verifies header placement, compact dimensions, absence of the Appearance label, all three theme choices persisting after reload, profile disclosure and actual sign out, desktop/phone layouts, short windows, 200% text sizing, contrast, no page overflow and no runtime errors. Reviewed desktop dark and phone screenshots from the final build. The older mutating workflow test's theme selector is updated but its data-entry/publication flow was not rerun for this layout-only change.

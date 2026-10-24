@@ -23,7 +23,6 @@ import {
   ArrowUp,
   Sparkles,
   GraduationCap,
-  Monitor,
   LogOut,
   Menu,
   X,
@@ -673,21 +672,6 @@ export function Workspace() {
               <br />A smoother defense day.
             </p>
           </div>
-          <label className="theme-picker" htmlFor="color-theme">
-            <span id="appearance-label">
-              <Monitor size={18} aria-hidden="true" /> Appearance
-            </span>
-            <select
-              id="color-theme"
-              aria-labelledby="appearance-label"
-              value={theme ?? "system"}
-              onChange={(event) => setTheme(event.target.value)}
-            >
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="system">System</option>
-            </select>
-          </label>
           <div
             className="profile-menu"
             onBlur={(event) => {
@@ -799,7 +783,17 @@ export function Workspace() {
               <span>Notifications</span>
               {d.notifications.some((n: Data) => !n.read) && <i />}
             </Link>
-            <span className="avatar small">{d.user.name.charAt(0)}</span>
+            <select
+              className="header-theme"
+              aria-label="Color theme"
+              title="Color theme"
+              value={theme ?? "system"}
+              onChange={(event) => setTheme(event.target.value)}
+            >
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="system">System</option>
+            </select>
           </div>
         </header>
         <main className="content" id="main-content" tabIndex={-1}>

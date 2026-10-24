@@ -1966,21 +1966,15 @@ select[multiple] {
   padding: 12px 4px 0;
   border-top: 1px solid var(--border);
 }
-.theme-picker {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 12px;
+.header-theme {
+  width: 7rem;
+  min-height: 44px;
+  padding: 8px 10px;
   font-size: 1rem;
   font-weight: 600;
-}
-.theme-picker > span {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.theme-picker select {
   background: var(--card);
   cursor: pointer;
+  flex-shrink: 0;
 }
 .profile-menu {
   border-top: 1px solid var(--border);
@@ -2444,8 +2438,12 @@ td small {
   .breadcrumb strong {
     display: none;
   }
-  .topbar-right .avatar {
+  .topbar-right .bell span {
     display: none;
+  }
+  .topbar-right .bell {
+    min-width: 44px;
+    justify-content: center;
   }
 }
 /* Very short zoomed windows scroll the entire drawer so no control is trapped. */

@@ -27,7 +27,7 @@ Use green, amber and red status badges with explicit words. The hero uses a navy
 ## Layout and interaction
 
 - Readability first: 18px base body text, 16px navigation/form text, and a 14px minimum for secondary labels at the default browser text size. Use rem units to respect preferred text size.
-- Main controls are at least 48px tall; the menu paging control is 44px. A labeled Appearance dropdown offers Light, Dark and System and preserves the selected preference.
+- Main controls are at least 48px tall; the menu paging control and compact header theme dropdown are 44px. The theme dropdown sits at the top right, shows only the selected Light, Dark or System mode, and has the accessible name Color theme. It preserves the selected preference.
 - Desktop sidebar uses available viewport height: the menu scrolls independently, with an explicit More pages / Back to first pages control. Account details and theme selection remain reachable. Sign out is hidden until the user opens the profile using their name/avatar; the disclosure supports keyboard operation, Escape, focus restoration and outside-click dismissal. Very short windows scroll the entire sidebar.
 - The current menu item is scrolled into view after navigation. At tablet widths and below, a labeled Menu button opens a drawer with keyboard focus containment, Escape, a close button and backdrop dismissal.
 - Faculty and student dashboards link directly to personal availability and published defense schedules. Their next steps use role-appropriate language.

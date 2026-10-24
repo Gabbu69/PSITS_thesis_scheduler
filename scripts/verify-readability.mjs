@@ -226,14 +226,21 @@ try {
     .click();
   assert.equal(await nav.evaluate((el) => el.scrollTop), 0);
   for (const theme of ["light", "dark", "system"]) {
-    const select = page.getByLabel("Appearance", { exact: true });
+    const select = page.getByLabel("Color theme", { exact: true });
+    assert(await select.evaluate((el) => !!el.closest(".topbar-right")));
+    assert.equal(
+      await page.getByText("Appearance", { exact: true }).count(),
+      0,
+    );
+    const bounds = await select.boundingBox();
+    assert(bounds.width <= 120 && bounds.height >= 44 && bounds.height <= 48);
     await insideViewport(select);
     await select.selectOption(theme);
     assert.equal(await select.inputValue(), theme);
     await page.reload();
     await page.locator("#main-content").waitFor();
     assert.equal(
-      await page.getByLabel("Appearance", { exact: true }).inputValue(),
+      await page.getByLabel("Color theme", { exact: true }).inputValue(),
       theme,
     );
     await checkContrast(page);
