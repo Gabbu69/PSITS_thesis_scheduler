@@ -2,6 +2,8 @@
 
 The current application uses real college accounts and required authenticator codes. The original 25 fictional accounts and associated sample records were removed after private, checksum-verified snapshots passed actual restore checks. Both hosted and normal local databases now start empty. Current verification and rollout details are in [USABILITY_AND_REAL_ACCOUNTS.md](USABILITY_AND_REAL_ACCOUNTS.md).
 
+Current release (October 24, 2026, Asia/Manila): Vercel deployment `dpl_8hhM8B5sAv5m4sgFFzPTWbAtkKvp` is **READY**, production target, aliased to [the live application](https://psits-thesis-scheduler.vercel.app). Runtime source is `69fd7c1be892adbd8f2c8e077d6f0aed2a854eb0`. [Runtime CI passed](https://github.com/Gabbu69/PSITS_thesis_scheduler/actions/runs/40072888681). The following release-receipt update changes documentation only. Live setup/login, retired-credential rejection, anonymous data/report denial, and the phone layout were rechecked after deployment. The first coordinator still needs to enter their actual identity and choose a personal password using the private setup key.
+
 The material below is the historical deployment receipt for the original demonstration build. Its demo accounts and source revision are not instructions for current use.
 
 ---

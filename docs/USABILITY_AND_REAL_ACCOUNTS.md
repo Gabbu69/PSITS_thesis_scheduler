@@ -29,7 +29,10 @@ There is no automatic email/SMS delivery. Coordinators privately provide tempora
 - PASS: every role page in the simplified navigation, 375/390 px phone widths, 668 x 318 landscape, 1024 x 768 tablet, dark mode, 200% text, mobile Escape/focus restoration, and zero browser runtime errors. Desktop, phone, and dark screenshots were visually inspected.
 - PASS: browser account creation → required personal password → locally rendered QR → valid TOTP → ten recovery codes → required save acknowledgment → home.
 - PASS: guarded retirement removed 25 fictional accounts, 12 groups, sample schedules, availability, and related records from each normal local/hosted database. Both finished with zero accounts and zero sample records.
-- Hosting rollout is being published from the source revision containing this receipt.
+- PASS: Vercel production deployment `dpl_8hhM8B5sAv5m4sgFFzPTWbAtkKvp` is READY and aliased to https://psits-thesis-scheduler.vercel.app. Runtime source: `69fd7c1be892adbd8f2c8e077d6f0aed2a854eb0`.
+- PASS: live login/setup HTTP 200, anonymous API/report HTTP 401, retired shared credentials HTTP 401, incorrect setup-key HTTP 403, live setup navigation, 375 px setup layout, and zero live browser runtime errors.
+- PASS: final local and hosted inspections found zero users, accounts, groups, sessions, and all other sample records. No QA identities were inserted into either normal workspace.
+- PASS: [GitHub Actions for the runtime source](https://github.com/Gabbu69/PSITS_thesis_scheduler/actions/runs/40072888681), including the new isolated real-account/authenticator integration step. The release-receipt commit after the runtime source changes documentation only.
 
 ## Evidence and boundaries
 
