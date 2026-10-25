@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { SignOutButton } from "./sign-out-button";
 export function PasswordForm({ required }: { required: boolean }) {
   const [error, setError] = useState(""), [busy, setBusy] = useState(false);
   return <main className="entry-page"><section className="entry-card">
@@ -22,6 +23,6 @@ export function PasswordForm({ required }: { required: boolean }) {
       <button disabled={busy} className="primary">{busy ? "Saving…" : "Save password"}</button>
     </form>
     {!required && <a href="/" className="text-link">Back to home</a>}
-    {required && <button className="text-link" onClick={async () => { await fetch("/api/auth/sign-out", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); location.href = "/login"; }}>Sign out</button>}
+    {required && <SignOutButton className="text-link" />}
   </section></main>;
 }

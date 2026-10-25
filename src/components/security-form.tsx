@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { SignOutButton } from "./sign-out-button";
 import QRCode from "react-qr-code";
 export function SecurityForm({ enabled, email }: { enabled: boolean; email: string }) {
   const [error, setError] = useState(""), [busy, setBusy] = useState(false);
@@ -54,6 +55,6 @@ export function SecurityForm({ enabled, email }: { enabled: boolean; email: stri
       <button className="primary" disabled={!saved} onClick={() => { location.href = "/"; }}>Continue to home</button>
     </>}
     {error && <div role="alert" className="error">{error}</div>}
-    {!(enabled || verified) && <button onClick={async () => { await fetch("/api/auth/sign-out", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); location.href = "/login"; }}>Sign out</button>}
+    {!(enabled || verified) && <SignOutButton />}
   </section></main>;
 }

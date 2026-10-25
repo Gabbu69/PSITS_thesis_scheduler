@@ -24,7 +24,6 @@ import {
   Monitor,
   Sparkles,
   GraduationCap,
-  LogOut,
   Menu,
   X,
   Download,
@@ -35,6 +34,7 @@ import {
 } from "lucide-react";
 import { local } from "@/lib/constraints";
 import { SimpleHome, SimpleAvailability, Accounts } from "./simple-workflows";
+import { SignOutButton } from "./sign-out-button";
 type Data = any;
 type Field = {
   name: string;
@@ -594,31 +594,7 @@ export function Workspace() {
               <div id="profile-actions" className="profile-actions">
                 <Link href="/security" className="button">Authenticator</Link>
                 <Link href="/account" className="button">Change password</Link>
-                <button
-                  type="button"
-                  className="account"
-                  onClick={async () => {
-                    try {
-                      const response = await fetch("/api/auth/sign-out", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: "{}",
-                      });
-                      if (!response.ok)
-                        throw new Error(
-                          "Could not sign out. Please try again.",
-                        );
-                      location.href = "/login";
-                    } catch {
-                      setError(
-                        "Could not sign out. Please check your connection and try again.",
-                      );
-                    }
-                  }}
-                >
-                  <LogOut size={20} aria-hidden="true" />
-                  Sign out
-                </button>
+                <SignOutButton className="account" icon />
               </div>
             )}
           </div>

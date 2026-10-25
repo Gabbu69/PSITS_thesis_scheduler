@@ -2616,3 +2616,11 @@ td small {
     justify-content: center;
   }
 }
+
+.sign-out-dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 28px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); color: var(--text); box-shadow: 0 16px 64px #071c3240; text-align: left; overflow-y: auto; }
+.sign-out-dialog::backdrop { background: #071c3280; }
+.sign-out-dialog h2 { font-size: 1.375rem; line-height: 1.4; }
+.sign-out-dialog p { margin: 12px 0 24px; font-size: 1rem; }
+.sign-out-actions { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
+.sign-out-actions button { min-height: 48px; }
+@media(max-width:480px) { .sign-out-dialog { padding: 24px; } .sign-out-actions button { flex: 1; } }

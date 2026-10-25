@@ -75,3 +75,9 @@ The configurable initial limits are starting values; the coordinator must set th
 ## Deployment
 
 The linked Vercel project uses the existing Neon PostgreSQL database. Apply reviewed migrations using its direct database connection before deploying the corresponding app. Runtime requests use the existing pooled connection. Deployment does not seed data. See [hosting](docs/HOSTED_DEPLOYMENT.md).
+
+## PSITS user guide
+
+The eight-page [PSITS usage guide](output/pdf/PSITS_Thesis_Scheduler_User_Guide.pdf) covers sign-in and authenticator setup, student and teacher workflows, coordinator setup and scheduling, reports, changes, sign-out confirmation, and troubleshooting. It contains no login credentials or private setup keys.
+
+Signing out now asks **Are you sure you want to sign out?** Choose **Cancel** to keep the session or **Sign out** to confirm. This applies in the workspace and during password/authenticator setup.
