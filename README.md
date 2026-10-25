@@ -34,6 +34,8 @@ QR codes are rendered locally. Secrets and backup codes are encrypted by the exi
 
 If a phone is lost, use a saved recovery code during sign-in. Keep the recovery codes in private storage. An enrolled user can check authenticator status or change their password through their profile menu. There is no unauthenticated bypass or coordinator button that silently removes MFA.
 
+While signed in, open **Account security → Replace recovery codes** to create a fresh set after confirming your current password. Previous recovery codes stop working immediately. Download the new codes and acknowledge that you saved them before returning home. The authenticator remains connected. This uses Better Auth’s [backup-code regeneration endpoint](https://better-auth.com/docs/plugins/2fa#generating-backup-codes).
+
 ## Local installation
 
 Use Node.js 22 or newer and PostgreSQL. Copy `.env.example` to `.env`, replace its placeholders, and keep it private.
@@ -81,3 +83,5 @@ The linked Vercel project uses the existing Neon PostgreSQL database. Apply revi
 The eight-page [PSITS usage guide](output/pdf/PSITS_Thesis_Scheduler_User_Guide.pdf) covers sign-in and authenticator setup, student and teacher workflows, coordinator setup and scheduling, reports, changes, sign-out confirmation, and troubleshooting. It contains no login credentials or private setup keys.
 
 Signing out now asks **Are you sure you want to sign out?** Choose **Cancel** to keep the session or **Sign out** to confirm. This applies in the workspace and during password/authenticator setup.
+
+Publishing schedules and regenerating over existing unlocked drafts also require confirmation. Removing a saved availability range uses an app dialog. Report previews clear when filters change, display loading feedback, and support retry after connection failures. See [the security and polish review](docs/SECURITY_AND_POLISH_REVIEW.md) for the fixes and verification scope.

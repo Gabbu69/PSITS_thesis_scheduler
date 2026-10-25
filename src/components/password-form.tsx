@@ -7,7 +7,7 @@ export function PasswordForm({ required }: { required: boolean }) {
     <h1>{required ? "Choose your password" : "Change password"}</h1>
     <p>{required ? "Replace your temporary password to continue." : "You’ll sign in again after saving."}</p>
     <form onSubmit={async (e) => {
-      e.preventDefault(); const f = new FormData(e.currentTarget); setError("");
+      e.preventDefault(); if (busy) return; const f = new FormData(e.currentTarget); setError("");
       if (f.get("password") !== f.get("confirm")) { setError("Passwords do not match."); return; }
       setBusy(true);
       try {

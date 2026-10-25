@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -94,11 +94,16 @@ export function Workspace() {
     op: string;
     fields: Field[];
     initial?: Data;
+    description?: string;
+    confirmLabel?: string;
   } | null>(null);
+  const busyRef = useRef(false);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const previewRequest = useRef(0);
   const [report, setReport] = useState<Data>({ type: "master" }),
     [roster, setRoster] = useState<Data[] | null>(null);
   async function refresh() {
-    const r = await fetch("/api/data");
+    const r = await fetch("/api/data", { cache: "no-store", signal: AbortSignal.timeout(20000) });
     if (r.status === 401) {
       location.href = "/login";
       return;
@@ -125,6 +130,11 @@ export function Workspace() {
     setMobile(false);
     setProfileOpen(false);
   }, [path]);
+  useEffect(() => {
+    previewRequest.current++;
+    setRoster(null);
+    setPreviewBusy(false);
+  }, [report, path]);
   useEffect(() => {
     const navigation = document.querySelector<HTMLElement>(".sidebar nav");
     if (!navigation) return;
@@ -203,12 +213,12 @@ export function Workspace() {
     const focusable = () =>
       Array.from(
         dialog?.querySelectorAll<HTMLElement>(
-          "button:not(:disabled),input,select,textarea,a[href]",
+          "button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]",
         ) ?? [],
-      );
+      ).filter((element) => element.getClientRects().length > 0);
     focusable()[0]?.focus();
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) setModal(null);
+      if (e.key === "Escape" && !busyRef.current) setModal(null);
       if (e.key === "Tab") {
         const items = focusable(),
           first = items[0],
@@ -227,9 +237,10 @@ export function Workspace() {
       document.removeEventListener("keydown", key);
       previous?.focus();
     };
-  }, [modal, busy]);
+  }, [modal, formStep]);
   async function action(op: string, body: Data): Promise<boolean> {
-    if (busy) return false;
+    if (busyRef.current) return false;
+    busyRef.current = true;
     setBusy(true);
     setError("");
     setSuccess("");
@@ -241,6 +252,10 @@ export function Workspace() {
         signal: AbortSignal.timeout(60000),
       });
       const d = await r.json();
+      if (r.status === 401 || ["PASSWORD_CHANGE_REQUIRED", "MFA_SETUP_REQUIRED"].includes(d.error)) {
+        location.href = r.status === 401 ? "/login" : d.error === "PASSWORD_CHANGE_REQUIRED" ? "/account" : "/security";
+        return false;
+      }
       if (!r.ok) throw new Error(d.error);
       setSuccess(
         op === "generate"
@@ -248,12 +263,14 @@ export function Workspace() {
           : "Saved successfully.",
       );
       setModal(null);
-      await refresh();
+      try { await refresh(); }
+      catch { setError("Your change was saved, but the latest records could not be loaded. Refresh the page to see the update."); }
       return true;
     } catch (e) {
-      setError((e as Error).message);
+      setError((e as Error).name === "TimeoutError" ? "The request timed out. Refresh to check whether your change was saved before trying again." : e instanceof TypeError ? "Could not connect. Check your connection and try again." : (e as Error).message);
       return false;
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -261,7 +278,8 @@ export function Workspace() {
     return (
       <main className="loading">
         <img src="/logo.jpg" alt="PSITS" />
-        <h2>{error || "Opening your college workspace…"}</h2>
+        <h2 role={error ? "alert" : "status"}>{error || "Opening your college workspace…"}</h2>
+        {error && <button onClick={() => { setError(""); refresh().catch((e) => setError(e.message)); }}>Try again</button>}
       </main>
     );
   const d = data,
@@ -289,6 +307,10 @@ export function Workspace() {
   const filtered = (rows: Data[], get: (r: Data) => string) =>
     rows.filter((r) => get(r).toLowerCase().includes(search.toLowerCase()));
   const names = (rows: Data[]) => rows.map((p) => p.name).join(", ");
+  const confirmAction = (title: string, description: string, op: string, initial: Data, confirmLabel: string) => {
+    setError("");
+    setModal({ title, description, op, initial, fields: [], confirmLabel });
+  };
   const groupOpts = options(groups, (g) => g.code + " · " + g.title),
     facultyOpts = options(d.faculty, (f) => f.user.name),
     stageOpts = options(d.stages);
@@ -1183,7 +1205,7 @@ export function Workspace() {
               </div>
             </>
           )}
-          {path === "/availability" && <SimpleAvailability d={d} action={action} busy={busy} />}
+          {path === "/availability" && <SimpleAvailability d={d} action={action} busy={busy} remove={(id) => confirmAction("Remove saved time?", "This removes the saved time range and rechecks published defenses for conflicts.", "removeAvailability", { id }, "Remove time")} />}
           {path === "/rooms" && (
             <>
               {admin && (
@@ -1294,14 +1316,18 @@ export function Workspace() {
                     onSubmit={(e) => {
                       e.preventDefault();
                       const f = new FormData(e.currentTarget);
-                      action("generate", {
+                      const selection = {
                         termId: f.get("termId"),
                         stageId: f.get("stageId"),
                         from: f.get("from"),
                         to: f.get("to"),
                         rooms: f.getAll("rooms"),
                         attemptIds: f.getAll("attemptIds"),
-                      });
+                      };
+                      if (!selection.rooms.length) { setError("Choose at least one room."); return; }
+                      const replaced = drafts.filter((s: Data) => !s.locked && attempts.some((a: Data) => a.id === s.attemptId && a.stageId === selection.stageId && a.group.termId === selection.termId) && (!selection.attemptIds.length || selection.attemptIds.includes(s.attemptId)));
+                      if (replaced.length) confirmAction("Replace existing draft?", `This replaces ${replaced.length} unlocked draft ${replaced.length === 1 ? "session" : "sessions"} in your selection. Locked drafts and published defenses stay in place.`, "generate", selection, "Replace draft");
+                      else action("generate", selection);
                     }}
                   >
                     <label>
@@ -1383,7 +1409,7 @@ export function Workspace() {
                     disabled={busy || !drafts.length}
                     className="primary"
                     onClick={() =>
-                      action("publish", { ids: drafts.map((s: Data) => s.id) })
+                      confirmAction("Publish defense schedule?", `Publish ${drafts.length} draft ${drafts.length === 1 ? "session" : "sessions"}? Participants will see the official schedule and receive notifications. Check every draft before continuing.`, "publish", { ids: drafts.map((s: Data) => s.id) }, "Publish schedule")
                     }
                   >
                     <ShieldCheck size={17} />
@@ -1576,16 +1602,24 @@ export function Workspace() {
                 className="report-form"
                 onSubmit={async (e) => {
                   e.preventDefault();
+                  if (previewBusy) return;
+                  const requestId = ++previewRequest.current;
+                  setPreviewBusy(true); setRoster(null); setError("");
                   const q = new URLSearchParams(
                     Object.fromEntries(
                       Object.entries(report).filter(([, v]) => v !== ""),
                     ) as any,
                   );
                   q.set("format", "json");
-                  const r = await fetch("/api/reports?" + q);
-                  const data = await r.json();
-                  if (r.ok) setRoster(data);
-                  else setError(data.error);
+                  try {
+                    const r = await fetch("/api/reports?" + q, { cache: "no-store", signal: AbortSignal.timeout(30000) });
+                    const data = await r.json();
+                    if (requestId !== previewRequest.current) return;
+                    if (!r.ok) throw new Error(data.error);
+                    setRoster(data);
+                  } catch (e) {
+                    if (requestId === previewRequest.current) setError((e as Error).name === "TimeoutError" ? "Preview timed out. Please try again." : e instanceof TypeError ? "Could not load the preview. Check your connection and try again." : (e as Error).message);
+                  } finally { if (requestId === previewRequest.current) setPreviewBusy(false); }
                 }}
               >
                 <div className="form-grid">
@@ -1712,7 +1746,7 @@ export function Workspace() {
                   )}
                 </div>
                 <div className="toolbar">
-                  <button className="primary">Preview student list</button>
+                  <button className="primary" disabled={previewBusy} aria-busy={previewBusy}>{previewBusy ? "Loading preview…" : "Preview student list"}</button>
                   <a
                     className="button secondary"
                     href={
@@ -2026,10 +2060,11 @@ export function Workspace() {
           >
             <div className="modal-heading">
               <h2 id="modal-title">{modal.title}</h2>
-              <button aria-label="Close dialog" onClick={() => setModal(null)}>
+              <button disabled={busy} aria-label="Close dialog" onClick={() => setModal(null)}>
                 <X size={21} />
               </button>
             </div>
+            {modal.description && <p>{modal.description}</p>}
             {error && (
               <div className="error" role="alert">
                 {error}
@@ -2117,6 +2152,7 @@ export function Workspace() {
                 <div className="modal-actions">
                   <button
                     type="button"
+                    disabled={busy}
                     className="secondary"
                     onClick={() => setModal(null)}
                   >
@@ -2124,7 +2160,7 @@ export function Workspace() {
                   </button>
                   {modal.op === "group" && formStep === 1 && <button type="button" onClick={() => setFormStep(0)}>Back</button>}
                   <button className="primary" disabled={busy}>
-                    {busy ? "Saving…" : modal.op === "group" && formStep === 0 ? "Next: members" : "Save"}
+                    {busy ? "Saving…" : modal.confirmLabel ?? (modal.op === "group" && formStep === 0 ? "Next: members" : "Save")}
                     <Check size={16} />
                   </button>
                 </div>

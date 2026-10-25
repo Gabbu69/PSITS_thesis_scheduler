@@ -35,8 +35,8 @@ export function LoginForm({ setupAvailable, message }: { setupAvailable: boolean
       <button className="primary" disabled={busy}>{busy ? "Checking…" : step === "password" ? "Sign in" : "Verify and sign in"}</button>
     </form>
     {step !== "password" ? <div className="entry-links">
-      <button onClick={() => { setStep(step === "totp" ? "recovery" : "totp"); setError(""); }}>{step === "totp" ? "Use a recovery code" : "Use authenticator code"}</button>
-      <button onClick={() => { setStep("password"); setError(""); }}>Back to sign in</button>
+      <button disabled={busy} onClick={() => { setStep(step === "totp" ? "recovery" : "totp"); setError(""); }}>{step === "totp" ? "Use a recovery code" : "Use authenticator code"}</button>
+      <button disabled={busy} onClick={() => { setStep("password"); setError(""); }}>Back to sign in</button>
     </div> : <details><summary>Need an account or a password reset?</summary><p>Contact your thesis coordinator. They can create your account or issue a temporary password. An authenticator recovery code is needed if you lose your phone.</p></details>}
     {setupAvailable && <a className="text-link" href="/setup">Set up the first coordinator</a>}
   </section></main>;

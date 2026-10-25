@@ -4,20 +4,15 @@ import { actor } from "@/lib/access";
 import { mutateRecord, viewData } from "@/lib/records";
 import { generateDraft, publish, changeSession } from "@/lib/scheduling";
 import { instant } from "@/lib/constraints";
+import { apiError } from "@/lib/api-errors";
+import { PublicError, calendarDate, clockTime, draftSelection } from "@/lib/validation";
 function failure(e: unknown) {
-  const message = e instanceof Error ? e.message : "Request failed";
-  const status =
-    message === "UNAUTHORIZED" ? 401 : ["FORBIDDEN", "PASSWORD_CHANGE_REQUIRED", "MFA_SETUP_REQUIRED"].includes(message) ? 403 : 400;
-  const friendly = message.includes("Unique constraint")
-    ? "A record already exists. Check duplicate membership, identifier, email, or booking."
-    : message.includes("Foreign key")
-      ? "A selected record no longer exists. Refresh and try again."
-      : e instanceof z.ZodError ? e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(" ") : message;
-  return NextResponse.json({ error: friendly }, { status });
+  const { error, status } = apiError(e);
+  return NextResponse.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
 }
 export async function GET() {
   try {
-    return NextResponse.json(await viewData(await actor()));
+    return NextResponse.json(await viewData(await actor()), { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return failure(e);
   }
@@ -25,7 +20,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     if (req.headers.get("origin") !== req.nextUrl.origin)
-      throw new Error("FORBIDDEN");
+      throw new PublicError("FORBIDDEN");
     const u = await actor();
     const { op, data } = z
       .object({ op: z.string(), data: z.unknown() })
@@ -34,16 +29,7 @@ export async function POST(req: NextRequest) {
     if (op === "generate")
       result = await generateDraft(
         u,
-        z
-          .object({
-            termId: z.string(),
-            stageId: z.string(),
-            from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-            to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-            rooms: z.array(z.string()).min(1),
-            attemptIds: z.array(z.string()).optional(),
-          })
-          .parse(data),
+        draftSelection.parse(data),
       );
     else if (op === "publish")
       result = await publish(
@@ -55,10 +41,10 @@ export async function POST(req: NextRequest) {
         .object({
           id: z.string(),
           action: z.enum(["LOCK", "EDIT", "RESCHEDULE", "CANCEL", "COMPLETE"]),
-          reason: z.string().default(""),
+          reason: z.string().max(500).default(""),
           roomId: z.string().optional(),
-          date: z.string().optional(),
-          time: z.string().optional(),
+          date: calendarDate.optional(),
+          time: clockTime.optional(),
         })
         .parse(data);
       result = await changeSession(
@@ -71,7 +57,7 @@ export async function POST(req: NextRequest) {
           : undefined,
       );
     } else result = await mutateRecord(u, op, data);
-    return NextResponse.json({ ok: true, result });
+    return NextResponse.json({ ok: true, result }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return failure(e);
   }

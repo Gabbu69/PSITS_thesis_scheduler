@@ -1,3 +1,5 @@
+import { PublicError, calendarDate, clockTime, studentNumber } from "./validation";
+import { publicSnapshot, snapshotIncludes } from "./snapshots";
 import { z } from "zod";
 import { hashPassword } from "better-auth/crypto";
 import { randomUUID } from "node:crypto";
@@ -8,11 +10,8 @@ import { advisingIssue } from "./constraints";
 import type { Tx } from "./context";
 import { realEmail, passwordSchema } from "./accounts";
 const text = z.string().trim().min(1).max(500);
-const date = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((s) => !isNaN(Date.parse(s)));
-const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const date = calendarDate;
+const time = clockTime;
 const integer = (min = 0, max = 10000) =>
   z.coerce.number().int().min(min).max(max);
 const windowSchema = z.object({
@@ -40,7 +39,7 @@ async function ownGroup(tx: Tx, u: Actor, id: string) {
     !g.memberships.some((m) => m.active && m.student.userId === u.id) &&
     !g.assignments.some((a) => a.faculty.userId === u.id)
   )
-    throw new Error("FORBIDDEN");
+    throw new PublicError("FORBIDDEN");
   return g;
 }
 async function checkCapacity(
@@ -76,7 +75,7 @@ async function checkCapacity(
     increment,
     checkPreference ? f.accepting : true,
   );
-  if (issue) throw new Error(issue);
+  if (issue) throw new PublicError(issue);
 }
 export async function mutateRecord(u: Actor, op: string, input: unknown) {
   return serialized(async (tx) => {
@@ -86,25 +85,25 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
         : [windowSchema.parse(input)];
       for (const d of entries) {
       if (u.role !== "COORDINATOR") {
-        if (d.roomId || d.userId !== u.id) throw new Error("FORBIDDEN");
+        if (d.roomId || d.userId !== u.id) throw new PublicError("FORBIDDEN");
       }
-      if (d.userId && d.roomId) throw new Error("Choose a person or a room");
+      if (d.userId && d.roomId) throw new PublicError("Choose a person or a room");
       if (
         !d.userId &&
         !d.roomId &&
         (u.role !== "COORDINATOR" || d.kind !== "BLOCK")
       )
-        throw new Error("Only coordinators create college-wide blocks");
+        throw new PublicError("Only coordinators create college-wide blocks");
       if (d.startTime >= d.endTime)
-        throw new Error("End time must be after start time");
+        throw new PublicError("End time must be after start time");
       if (!d.date && d.weekday == null)
-        throw new Error("Choose a date or a recurring weekday");
+        throw new PublicError("Choose a date or a recurring weekday");
       if (d.date && d.weekday != null)
-        throw new Error("Choose either a date or recurring weekday");
+        throw new PublicError("Choose either a date or recurring weekday");
       if (d.effectiveFrom && d.effectiveTo && d.effectiveFrom > d.effectiveTo)
-        throw new Error("Invalid effective date range");
+        throw new PublicError("Invalid effective date range");
       if (d.userId && !await tx.user.count({ where: { id: d.userId } }))
-        throw new Error("Choose an existing person.");
+        throw new PublicError("Choose an existing person.");
       const duplicate = await tx.availability.findFirst({ where: {
         userId: d.userId ?? null, roomId: d.roomId ?? null, kind: d.kind,
         date: d.date ?? null, weekday: d.weekday ?? null,
@@ -121,7 +120,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
       const { id } = z.object({ id: text }).parse(input);
       const w = await tx.availability.findUniqueOrThrow({ where: { id } });
       if (u.role !== "COORDINATOR" && w.userId !== u.id)
-        throw new Error("FORBIDDEN");
+        throw new PublicError("FORBIDDEN");
       await tx.availability.delete({ where: { id } });
       await flagAffected(tx, u);
       return { ok: true };
@@ -149,7 +148,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
       });
     }
     if (op === "accepting") {
-      if (u.role !== "FACULTY") throw new Error("FORBIDDEN");
+      if (u.role !== "FACULTY") throw new PublicError("FORBIDDEN");
       const d = z.object({ accepting: z.boolean() }).parse(input);
       await audit(tx, u, op, JSON.stringify(d));
       return tx.faculty.update({ where: { userId: u.id }, data: d });
@@ -165,8 +164,9 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           where: { id: d.attemptId },
         }),
         g = await ownGroup(tx, u, attempt.groupId);
+      if (!g.active) throw new PublicError("Group is archived");
       if (d.status === "REQUESTED" && attempt.readiness !== "PENDING")
-        throw new Error("This defense has already been submitted for review.");
+        throw new PublicError("This defense has already been submitted for review.");
       if (d.status === "READY" || d.status === "PENDING") {
         const rules = await tx.rules.findUniqueOrThrow({ where: { id: 1 } });
         if (
@@ -179,7 +179,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
             )
           )
         )
-          throw new Error("FORBIDDEN");
+          throw new PublicError("FORBIDDEN");
       }
       await audit(tx, u, op, JSON.stringify(d));
       const updated = await tx.attempt.update({
@@ -202,11 +202,11 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           email: realEmail,
           password: passwordSchema,
           role: z.enum(["COORDINATOR", "FACULTY", "STUDENT"]),
-          number: z.string().optional(),
+          number: studentNumber.optional(),
         })
         .parse(input);
       if (d.role === "STUDENT" && !d.number)
-        throw new Error("Student identifier required");
+        throw new PublicError("Student identifier required");
       const id = randomUUID();
       result = await tx.user.create({
         data: {
@@ -236,7 +236,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           id: text,
           name: text,
           email: realEmail,
-          number: z.string().optional(),
+          number: studentNumber.optional(),
           password: z.string().max(128).optional(),
         })
         .parse(input);
@@ -251,7 +251,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
         });
       if (d.password) {
         if (d.password.length < 12)
-          throw new Error("Password must contain at least 12 characters");
+          throw new PublicError("Password must contain at least 12 characters");
         await tx.account.updateMany({
           where: { userId: d.id, providerId: "credential" },
           data: { password: await hashPassword(d.password) },
@@ -281,7 +281,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           where: { groupId: m.groupId, active: true },
         })) <= 1
       )
-        throw new Error("An active group must retain at least one student");
+        throw new PublicError("An active group must retain at least one student");
       result = await tx.membership.update({
         where: { id: m.id },
         data: { active: false },
@@ -371,9 +371,9 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           memberships: { where: { active: true } },
         },
       });
-      if (!g.active) throw new Error("Group is archived");
+      if (!g.active) throw new PublicError("Group is archived");
       if (g.memberships.some((m) => m.studentId === d.studentId))
-        throw new Error("Student is already an active member of this group");
+        throw new PublicError("Student is already an active member of this group");
       for (const a of g.assignments)
         if (a.faculty.capacityUnit === "STUDENTS")
           await checkCapacity(
@@ -405,14 +405,14 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           assignments: true,
         },
       });
-      if (!g.active) throw new Error("Group is archived");
+      if (!g.active) throw new PublicError("Group is archived");
       const r = await tx.rules.findUniqueOrThrow({ where: { id: 1 } });
       if (
         new Set(d.panelIds).size !== r.panelists ||
         (r.chairRequired && !d.panelIds.includes(d.chairId)) ||
         (!r.adviserAsPanelist && d.panelIds.includes(d.adviserId))
       )
-        throw new Error(
+        throw new PublicError(
           "Committee must match panel count, chair and adviser rules",
         );
       const f = await tx.faculty.findUniqueOrThrow({
@@ -458,7 +458,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
             ),
         )
       )
-        throw new Error(
+        throw new PublicError(
           "Resolve the previous attempt before creating a repeat defense",
         );
       result = await tx.attempt.create({
@@ -482,7 +482,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
           },
         })
       )
-        throw new Error("Resolve active defense bookings before archiving");
+        throw new PublicError("Resolve active defense bookings before archiving");
       await tx.membership.updateMany({
         where: { groupId: d.groupId },
         data: { active: false },
@@ -509,7 +509,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
         })
         .parse(input);
       if (d.startDate > d.endDate || d.openTime >= d.closeTime)
-        throw new Error("Invalid scheduling date range or college hours");
+        throw new PublicError("Invalid scheduling date range or college hours");
       const { name, logo, ...rules } = d;
       await tx.college.update({ where: { id: 1 }, data: { name, logo } });
       result = await tx.rules.update({ where: { id: 1 }, data: rules });
@@ -529,7 +529,7 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
         where: { id: d.id },
         data: { status: d.status },
       });
-    } else throw new Error("Unknown action");
+    } else throw new PublicError("Unknown action");
     // Passwords and private request details are never put in the audit log.
     await audit(
       tx,
@@ -594,6 +594,7 @@ export async function viewData(u: Actor) {
         term: true,
         section: { include: { program: true } },
         memberships: {
+          where: admin ? {} : { active: true },
           include: {
             student: {
               include: {
@@ -683,7 +684,14 @@ export async function viewData(u: Actor) {
     groups,
     faculty: publicFaculty,
     students,
-    sessions,
+    sessions: sessions.map((s) => ({
+      ...s,
+      snapshot: publicSnapshot.parse(s.snapshot),
+      history: s.history.flatMap((h) => {
+        const snapshot = publicSnapshot.parse(h.snapshot);
+        return admin || snapshotIncludes(snapshot, u.id) ? [{ ...h, snapshot }] : [];
+      }),
+    })),
     windows,
     notifications,
     requests,

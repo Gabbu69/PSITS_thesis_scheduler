@@ -5,7 +5,7 @@ import { PrismaClient } from "@prisma/client";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const base = process.env.BETTER_AUTH_URL;
 assert(new URL(base).hostname === "localhost" && /test/.test(new URL(process.env.DATABASE_URL).pathname), "Isolated localhost test database required.");
-const users = JSON.parse(await readFile("tmp/real-auth-qa-accounts.json", "utf8"));
+const users = JSON.parse(await readFile(process.env.QA_ACCOUNTS_FILE ?? "tmp/real-auth-qa-accounts.json", "utf8"));
 function code(uri) {
   let bits = "";
   for (const c of new URL(uri).searchParams.get("secret")) bits += "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".indexOf(c).toString(2).padStart(5, "0");

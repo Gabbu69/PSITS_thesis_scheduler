@@ -1,3 +1,5 @@
+import { PublicError, validateReportFilters } from "./validation";
+import { publicSnapshot } from "./snapshots";
 import React from "react";
 import {
   Document,
@@ -33,15 +35,16 @@ export async function reportRows(
   u: Actor,
   filters: URLSearchParams,
 ): Promise<ReportRow[]> {
+  validateReportFilters(filters);
   const type = filters.get("type") ?? "master";
   if (!["master", "roster", "faculty", "room", "group"].includes(type))
-    throw new Error("Invalid report type");
+    throw new PublicError("Invalid report type");
   if (u.role === "STUDENT" && !["group", "roster"].includes(type))
-    throw new Error("FORBIDDEN");
+    throw new PublicError("FORBIDDEN");
   if (u.role === "FACULTY" && !["faculty", "group", "roster"].includes(type))
-    throw new Error("FORBIDDEN");
+    throw new PublicError("FORBIDDEN");
   const drafts = filters.get("draft") === "true";
-  if (drafts && u.role !== "COORDINATOR") throw new Error("FORBIDDEN");
+  if (drafts && u.role !== "COORDINATOR") throw new PublicError("FORBIDDEN");
   const sessions = await db.defenseSession.findMany({
     where: {
       status: drafts
@@ -90,7 +93,8 @@ export async function reportRows(
       )
     )
       continue;
-    const date = local(snap.start);
+    const safeSnapshot = publicSnapshot.parse(snap);
+    const date = local(safeSnapshot.start);
     if (
       (filters.get("from") && date < filters.get("from")!) ||
       (filters.get("to") && date > filters.get("to")!)
@@ -111,7 +115,7 @@ export async function reportRows(
     )
       continue;
     rows.push({
-      ...snap,
+      ...safeSnapshot,
       sessionId: s.id,
       date,
       start: local(snap.start, "hh:mm a"),

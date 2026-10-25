@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { actor } from "@/lib/access";
 import { db } from "@/lib/db";
 import { reportRows, pdfBuffer, csvText } from "@/lib/reports";
+import { apiError } from "@/lib/api-errors";
 export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   try {
     const u = await actor(),
       q = req.nextUrl.searchParams,
       rows = await reportRows(u, q);
-    if (q.get("format") === "json") return NextResponse.json(rows);
+    if (q.get("format") === "json") return NextResponse.json(rows, { headers: { "Cache-Control": "no-store" } });
     if (q.get("format") === "csv")
       return new Response(csvText(rows), {
         headers: {
@@ -36,17 +37,7 @@ export async function GET(req: NextRequest) {
       },
     );
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Report failed";
-    return NextResponse.json(
-      { error: message },
-      {
-        status:
-          message === "UNAUTHORIZED"
-            ? 401
-            : ["FORBIDDEN", "PASSWORD_CHANGE_REQUIRED", "MFA_SETUP_REQUIRED"].includes(message)
-              ? 403
-              : 400,
-      },
-    );
+    const { error, status } = apiError(e);
+    return NextResponse.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
   }
 }

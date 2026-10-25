@@ -42,13 +42,13 @@ export function SimpleHome({ d }: { d: Data }) {
   </>;
 }
 
-export function SimpleAvailability({ d, action, busy }: { d: Data; action: Action; busy: boolean }) {
+export function SimpleAvailability({ d, action, busy, remove }: { d: Data; action: Action; busy: boolean; remove: (id: string) => void }) {
   const admin = d.user.role === "COORDINATOR";
   const [scope, setScope] = useState("person"), [resource, setResource] = useState(admin ? "" : d.user.id);
   const [mode, setMode] = useState("weekly"), [kind, setKind] = useState("AVAILABLE");
   const [editing, setEditing] = useState(false), [error, setError] = useState("");
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const rows = d.windows.filter((w: Data) => admin ? scope === "college" ? !w.roomId && !w.userId : !resource || (scope === "room" ? w.roomId === resource : w.userId === resource) : w.userId === d.user.id);
+  const rows = d.windows.filter((w: Data) => admin ? scope === "college" ? !w.roomId && !w.userId : scope === "room" ? !!w.roomId && (!resource || w.roomId === resource) : !!w.userId && (!resource || w.userId === resource) : w.userId === d.user.id);
   const personName = (id: string) => d.users.find((u: Data) => u.id === id)?.name ?? "Person";
   return <>
     <section className="panel">
@@ -82,7 +82,7 @@ export function SimpleAvailability({ d, action, busy }: { d: Data; action: Actio
       {rows.length ? <div className="time-list">{rows.map((w: Data) => <div key={w.id}>
         <span className={`badge ${w.kind === "BLOCK" ? "amber" : "green"}`}>{w.kind === "BLOCK" ? "Unavailable" : "Available"}</span>
         <div><strong>{w.date ? local(`${w.date}T00:00:00+08:00`, "MMM d, yyyy") : `Every ${days[w.weekday]}`}</strong><p>{w.startTime}–{w.endTime}{admin && ` · ${w.userId ? personName(w.userId) : d.rooms.find((r: Data) => r.id === w.roomId)?.name ?? "College closure"}`}</p>{(w.effectiveFrom || w.effectiveTo) && <small>{w.effectiveFrom ?? "Any date"} → {w.effectiveTo ?? "No end"}</small>}{w.label && <small>{w.label}</small>}</div>
-        <button disabled={busy} onClick={() => { if (confirm("Remove this saved time?")) action("removeAvailability", { id: w.id }); }}>Remove</button>
+        <button disabled={busy} onClick={() => remove(w.id)}>Remove</button>
       </div>)}</div> : <div className="simple-empty"><Clock3 size={28} /><strong>No times added</strong><p>Choose “Add time” to get started.</p></div>}
       <details><summary>How available times work</summary><p>A specific date replaces your weekly availability for that date. Unavailable times always take priority. Add a weekly range or a specific date before your defense can be scheduled.</p></details>
     </section>

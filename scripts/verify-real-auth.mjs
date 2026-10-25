@@ -103,6 +103,6 @@ try {
   await db.twoFactor.updateMany({where:{userId:(await db.user.findUnique({where:{email:coordinator.email}})).id},data:{failedVerificationCount:0,lockedUntil:null}});
   success("cross-origin mutation rejection and persisted authenticator lockout after repeated bad codes");
   await mkdir("tmp", { recursive: true });
-  await writeFile("tmp/real-auth-qa-accounts.json",JSON.stringify({coordinator:{...coordinator,totpURI:adminFactor.totpURI},people}));
+  await writeFile(process.env.QA_ACCOUNTS_FILE ?? "tmp/real-auth-qa-accounts.json",JSON.stringify({coordinator:{...coordinator,totpURI:adminFactor.totpURI},people}));
   success("QA credentials saved only in ignored local test artifacts");
 } finally { await db.$disconnect(); }

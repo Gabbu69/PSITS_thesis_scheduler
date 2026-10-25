@@ -1,3 +1,4 @@
+import { PublicError, draftSelection } from "./validation";
 import { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { candidates, context, type Tx } from "./context";
@@ -28,9 +29,14 @@ export async function serialized<T>(fn: (tx: Tx) => Promise<T>) {
 export const audit = (tx: Tx, user: Actor, action: string, details: string) =>
   tx.auditEvent.create({ data: { actorId: user.id, action, details } });
 export function snapshot(c: Candidate, p: Proposal, ctx: Context) {
+  const names = (people: Candidate["students"]) => people.map(({ id, name }) => ({ id, name }));
   return JSON.parse(
     JSON.stringify({
       ...c,
+      students: names(c.students),
+      adviser: names(c.adviser),
+      panel: names(c.panel),
+      chair: names(c.chair),
       ...p,
       room: ctx.rooms.find((r) => r.id === p.roomId),
       buffer: ctx.rules.buffer,
@@ -54,6 +60,7 @@ export async function generateDraft(
   },
 ) {
   coordinator(user);
+  selection = draftSelection.parse(selection);
   return serialized(async (tx) => {
     if (
       selection.from > selection.to ||
@@ -61,7 +68,7 @@ export async function generateDraft(
         86400000 >
         93
     )
-      throw new Error("Choose a valid date range of at most 94 days");
+      throw new PublicError("Choose a valid date range of at most 94 days");
     const ctx = await context(tx);
     const eligible = await tx.attempt.findMany({
       where: {
@@ -133,12 +140,12 @@ export async function publish(user: Actor, ids: string[]) {
       where: { id: { in: ids }, status: "DRAFT" },
     });
     if (drafts.length !== ids.length || !ids.length)
-      throw new Error("Draft changed. Refresh the preview before publishing.");
+      throw new PublicError("Draft changed. Refresh the preview before publishing.");
     for (const s of drafts) {
       const c = cs.find((c) => c.attemptId === s.attemptId);
-      if (!c) throw new Error("Group no longer active");
+      if (!c) throw new PublicError("Group no longer active");
       const errors = validate(c, s, ctx, s.id);
-      if (errors.length) throw new Error(`${c.code}: ${errors.join("; ")}`);
+      if (errors.length) throw new PublicError(`${c.code}: ${errors.join("; ")}`);
       const snap = snapshot(c, s, ctx);
       await tx.defenseSession.update({
         where: { id: s.id },
@@ -187,24 +194,24 @@ export async function changeSession(
       include: { participants: true },
     });
     if (action === "LOCK") {
-      if (s.status !== "DRAFT") throw new Error("Only drafts can be locked");
+      if (s.status !== "DRAFT") throw new PublicError("Only drafts can be locked");
       await audit(tx, user, "LOCK_DRAFT", `${id}: ${!s.locked}`);
       return tx.defenseSession.update({
         where: { id },
         data: { locked: !s.locked },
       });
     }
-    if (!reason.trim()) throw new Error("A reason is required");
+    if (!reason.trim()) throw new PublicError("A reason is required");
     if (action === "RESCHEDULE" || action === "EDIT") {
       if (
         (action === "EDIT" && s.status !== "DRAFT") ||
         (action === "RESCHEDULE" && s.status !== "PUBLISHED")
       )
-        throw new Error("Invalid schedule transition");
-      if (!replacement) throw new Error("Replacement time and room required");
+        throw new PublicError("Invalid schedule transition");
+      if (!replacement) throw new PublicError("Replacement time and room required");
       const ctx = await context(tx),
         c = (await candidates(tx)).find((c) => c.attemptId === s.attemptId);
-      if (!c) throw new Error("Group no longer active");
+      if (!c) throw new PublicError("Group no longer active");
       if (action === "RESCHEDULE")
         ctx.bookings = ctx.bookings.filter((b) => b.status !== "DRAFT");
       const p = {
@@ -213,7 +220,7 @@ export async function changeSession(
         end: new Date(replacement.start.getTime() + c.duration * 60000),
       };
       const errors = validate(c, p, ctx, id);
-      if (errors.length) throw new Error(errors.join("; "));
+      if (errors.length) throw new PublicError(errors.join("; "));
       const snap = snapshot(c, p, ctx),
         version = s.status === "DRAFT" ? 0 : s.version + 1;
       const updated = await tx.defenseSession.update({
@@ -252,9 +259,9 @@ export async function changeSession(
       return updated;
     }
     if (!["CANCEL", "COMPLETE"].includes(action) || s.status !== "PUBLISHED")
-      throw new Error("Only a published session can be completed or cancelled");
+      throw new PublicError("Only a published session can be completed or cancelled");
     if (action === "COMPLETE" && s.end > new Date())
-      throw new Error("A future defense cannot be marked completed");
+      throw new PublicError("A future defense cannot be marked completed");
     const status = action === "CANCEL" ? "CANCELLED" : "COMPLETED",
       version = s.version + 1;
     const updated = await tx.defenseSession.update({
@@ -292,11 +299,15 @@ export async function flagAffected(tx: Tx, user: Actor) {
   for (const s of sessions) {
     const c = cs.find((c) => c.attemptId === s.attemptId);
     const errors = c ? validate(c, s, ctx, s.id) : ["Group no longer active"];
-    if (errors.length) {
+    const attention = errors.length > 0;
+    if (s.attention !== attention) {
       await tx.defenseSession.update({
         where: { id: s.id },
-        data: { attention: true },
+        data: { attention },
       });
+    }
+    // Notify once per transition into review, and clear the flag when repaired.
+    if (attention && !s.attention) {
       const admins = await tx.user.findMany({ where: { role: "COORDINATOR" } });
       await notify(
         tx,
