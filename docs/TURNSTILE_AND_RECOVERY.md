@@ -38,3 +38,11 @@ Sources: [Cloudflare widget rendering](https://developers.cloudflare.com/turnsti
 - Runtime dependency audit reported zero known vulnerabilities. `git diff --check` passed.
 
 These checks used fictional accounts in an isolated local database and Cloudflare's official dummy widget keys. No real account password was changed for testing. Production activation and physical-phone acceptance are separate steps.
+
+## Production release — October 26, 2026 (Asia/Manila)
+
+Runtime source: `7958f9fabac29cf4a622cd7010e01d1dc53d35d8`, pushed to `origin/main`. [GitHub CI passed](https://github.com/Gabbu69/PSITS_thesis_scheduler/actions/runs/40343137940). Vercel deployment `dpl_FmY9pnrvjqF3HA4wWmy6QxUM8pua` reported READY and is aliased to [the live application](https://psits-thesis-scheduler.vercel.app). The matching additive migration applied successfully through the existing Neon direct connection, and Prisma reports the schema up to date. The widget uses Managed mode, the exact production hostname, and no pre-clearance. Its rotated secret is stored as a Vercel Production Secret; neither real key is committed.
+
+Live checks: `/login` and `/forgot-password` returned 200 with the current forms and valid configuration; both sign-in and recovery rejected missing Turnstile tokens with 400; anonymous data/reports remained inaccessible. The real production widget completed verification in Brave, and an authorized deliberately invalid login reached credential verification and returned 401, confirmed in Vercel request logs. The real account was not used for this check. Headless automation was shown a human checkbox; it was not used to claim successful human verification. Full password-reset acceptance was tested on the isolated database, including the production build's browser flow. No real password was reset and no real phone pairing was changed during verification.
+
+Production record counts before and after rollout were unchanged: one account, zero groups, and zero defense sessions; no password-history or recovery audit rows were added by rollout tests. Physical-phone recovery acceptance still belongs to the account owner. This receipt changes documentation only; deployed runtime source is identified above.
