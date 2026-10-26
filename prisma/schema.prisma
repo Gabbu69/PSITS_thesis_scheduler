@@ -19,6 +19,7 @@ model User {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   sessions AuthSession[]
   accounts Account[]
+  passwordHistory PasswordHistory[]
   faculty Faculty?
   student Student?
   availability Availability[]
@@ -74,6 +75,20 @@ model Verification {
   expiresAt DateTime @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+model PasswordHistory {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  password String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([userId, createdAt])
+}
+model RateLimit {
+  id String @id
+  key String @unique
+  count Int
+  lastRequest BigInt
 }
 model College {
   id Int @id @default(1)

@@ -1,43 +1,38 @@
 "use client";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-export function LoginForm({ setupAvailable, message }: { setupAvailable: boolean; message: string }) {
-  const [step, setStep] = useState<"password" | "totp" | "recovery">("password");
+import { TurnstileWidget } from "./turnstile-widget";
+export function LoginForm({ setupAvailable, message, siteKey }: { setupAvailable: boolean; message: string; siteKey: string }) {
   const [error, setError] = useState(""), [busy, setBusy] = useState(false), [show, setShow] = useState(false);
+  const [token, setToken] = useState(""), [attempt, setAttempt] = useState(0);
   return <main className="entry-page"><section className="entry-card">
     <img src="/logo.jpg" className="entry-logo" alt="PSITS" />
-    <p className="entry-brand">Thesis Scheduler</p>
-    <h1>{step === "password" ? "Sign in" : step === "totp" ? "Check your authenticator" : "Use a recovery code"}</h1>
-    <p>{step === "password" ? "Use the account provided by your coordinator." : step === "totp" ? "Enter the six-digit code from your authenticator app." : "Enter one of the codes you saved during setup."}</p>
-    {message && step === "password" && <div className="success" role="status">{message}</div>}
-    <form key={step} onSubmit={async (e) => {
-      e.preventDefault(); if (busy) return; setBusy(true); setError("");
+    <p className="entry-brand">Thesis Scheduler</p><h1>Sign in</h1>
+    <p>Use the account provided by your coordinator.</p>
+    {message && <div className="success" role="status">{message}</div>}
+    <form onSubmit={async (e) => {
+      e.preventDefault(); if (busy || !token) return; setBusy(true); setError("");
       const f = new FormData(e.currentTarget);
-      const endpoint = step === "password" ? "sign-in/email" : step === "totp" ? "two-factor/verify-totp" : "two-factor/verify-backup-code";
-      const body = step === "password" ? { email: String(f.get("email")).trim().toLowerCase(), password: f.get("password") } : { code: String(f.get("code")).trim() };
       try {
-        const r = await fetch(`/api/auth/${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+        const r = await fetch("/api/auth/sign-in/email", { method: "POST", headers: { "Content-Type": "application/json", "x-captcha-response": token }, body: JSON.stringify({ email: String(f.get("email")).trim().toLowerCase(), password: f.get("password") }), signal: AbortSignal.timeout(20000) });
         const d = await r.json().catch(() => null);
-        if (!r.ok) throw new Error(r.status === 429 ? "Too many attempts. Please wait before trying again." : step === "password" ? "Email or password not recognized." : "Code not accepted. Try a new code, or sign in again if this request has expired.");
-        if (d?.twoFactorRedirect) setStep("totp"); else location.href = "/";
+        if (!r.ok) throw new Error(r.status === 429 ? "Too many attempts. Please wait before trying again." : d?.code === "TURNSTILE_FAILED" ? d.message : "Email or password not recognized.");
+        location.href = "/";
       } catch (e) { setError(["TimeoutError", "AbortError"].includes((e as Error).name) ? "Connection timed out. Your entries have been kept; please try again." : (e as Error).message); }
-      finally { setBusy(false); }
+      finally { setBusy(false); setToken(""); setAttempt(attempt + 1); }
     }}>
-      {step === "password" ? <>
-        <label>Email<input type="email" name="email" autoComplete="username" autoCapitalize="none" spellCheck={false} required /></label>
-        <label htmlFor="login-password">Password</label>
-        <div className="password-field">
-          <input id="login-password" type={show ? "text" : "password"} name="password" autoComplete="current-password" required />
-          <button type="button" className="password-toggle" aria-label={show ? "Hide password" : "Show password"} aria-pressed={show} onClick={() => setShow(!show)}>{show ? <EyeOff size={20} /> : <Eye size={20} />}{show ? "Hide" : "Show"}</button>
-        </div>
-      </> : <label>{step === "totp" ? "Six-digit code" : "Recovery code"}<input autoFocus name="code" autoComplete="one-time-code" inputMode={step === "totp" ? "numeric" : "text"} pattern={step === "totp" ? "[0-9]{6}" : undefined} maxLength={step === "totp" ? 6 : 64} required /></label>}
+      <label>Email<input type="email" name="email" autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={254} required /></label>
+      <label htmlFor="login-password">Password</label>
+      <div className="password-field">
+        <input id="login-password" type={show ? "text" : "password"} name="password" autoComplete="current-password" maxLength={128} required />
+        <button type="button" className="password-toggle" aria-label={show ? "Hide password" : "Show password"} aria-pressed={show} onClick={() => setShow(!show)}>{show ? <EyeOff size={20} /> : <Eye size={20} />}{show ? "Hide" : "Show"}</button>
+      </div>
+      {siteKey ? <TurnstileWidget key={attempt} siteKey={siteKey} action="login" onToken={setToken} /> : <div role="alert" className="error">Sign-in security is being configured. Please contact your coordinator.</div>}
       {error && <div role="alert" className="error">{error}</div>}
-      <button className="primary" disabled={busy}>{busy ? "Checking…" : step === "password" ? "Sign in" : "Verify and sign in"}</button>
+      <button className="primary" disabled={busy || !token} aria-busy={busy}>{busy ? "Signing in…" : "Sign in"}</button>
     </form>
-    {step !== "password" ? <div className="entry-links">
-      <button disabled={busy} onClick={() => { setStep(step === "totp" ? "recovery" : "totp"); setError(""); }}>{step === "totp" ? "Use a recovery code" : "Use authenticator code"}</button>
-      <button disabled={busy} onClick={() => { setStep("password"); setError(""); }}>Back to sign in</button>
-    </div> : <details><summary>Need an account or a password reset?</summary><p>Contact your thesis coordinator. They can create your account or issue a temporary password. An authenticator recovery code is needed if you lose your phone.</p></details>}
+    <a className="text-link" href="/forgot-password">Forgot password?</a>
+    <details><summary>Need an account?</summary><p>Contact your thesis coordinator for your own account. Your authenticator is used only when resetting a forgotten password.</p></details>
     {setupAvailable && <a className="text-link" href="/setup">Set up the first coordinator</a>}
   </section></main>;
 }

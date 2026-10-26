@@ -17,7 +17,7 @@ export function PasswordForm({ required }: { required: boolean }) {
       } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
     }}>
       <label>Current password<input name="current" type="password" required maxLength={128} autoComplete="current-password" /></label>
-      <label>New password<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /><small>At least 12 characters.</small></label>
+      <label>New password<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /><small>At least 12 characters. Different from your current and last five passwords.</small></label>
       <label>Confirm new password<input name="confirm" type="password" required minLength={12} autoComplete="new-password" /></label>
       {error && <div role="alert" className="error">{error}</div>}
       <button disabled={busy} className="primary">{busy ? "Saving…" : "Save password"}</button>

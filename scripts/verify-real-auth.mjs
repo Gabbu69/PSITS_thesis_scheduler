@@ -12,7 +12,7 @@ function client() {
   return {
     cookies,
     async request(path, body, retry = 0) {
-      const r = await fetch(base + path, { method: body === undefined ? "GET" : "POST", headers: { Origin: base, "Content-Type": "application/json", Cookie: [...cookies].map(([k,v]) => `${k}=${v}`).join("; ") }, ...(body === undefined ? {} : {body:JSON.stringify(body)}), redirect:"manual" });
+      const r = await fetch(base + path, { method: body === undefined ? "GET" : "POST", headers: { Origin: base, "Content-Type": "application/json", ...(path === "/api/auth/sign-in/email" || path === "/api/account/recover" ? {"x-captcha-response":"XXXX.DUMMY.TOKEN.XXXX"} : {}), Cookie: [...cookies].map(([k,v]) => `${k}=${v}`).join("; ") }, ...(body === undefined ? {} : {body:JSON.stringify(body)}), redirect:"manual" });
       for (const cookie of r.headers.getSetCookie()) {
         const [pair] = cookie.split(";"); const i = pair.indexOf("="); cookies.set(pair.slice(0,i),pair.slice(i+1));
       }
@@ -62,17 +62,13 @@ try {
   assert(!factors[0].backupCodes.includes(adminFactor.backupCodes[0]));
   success("MFA enrollment, invalid code rejection, encrypted secrets, and server-side enrollment gate");
   const challenge=client(); const signIn=await challenge.request("/api/auth/sign-in/email",coordinator);
-  assert.equal(signIn.data.twoFactorRedirect,true);
-  assert.equal((await challenge.request("/api/data")).status,401);
-  assert.equal((await challenge.request("/api/reports")).status,401);
-  assert.equal((await challenge.request("/api/auth/two-factor/verify-totp",{code:totp(adminFactor.totpURI)})).status,200);
+  assert.equal(signIn.status,200); assert.notEqual(signIn.data.twoFactorRedirect,true);
   assert.equal((await challenge.request("/api/data")).status,200);
-  success("password-only challenge cannot access application data or reports; TOTP completes sign-in");
-  const recovery=client(); await recovery.request("/api/auth/sign-in/email",coordinator);
-  assert.equal((await recovery.request("/api/auth/two-factor/verify-backup-code",{code:adminFactor.backupCodes[0]})).status,200);
-  const replay=client(); await replay.request("/api/auth/sign-in/email",coordinator);
-  assert.notEqual((await replay.request("/api/auth/two-factor/verify-backup-code",{code:adminFactor.backupCodes[0]})).status,200);
-  success("recovery codes work once and reused codes are rejected");
+  const noCaptcha=await fetch(base+"/api/auth/sign-in/email",{method:"POST",headers:{Origin:base,"Content-Type":"application/json"},body:JSON.stringify(coordinator)});
+  assert.equal(noCaptcha.status,400);
+  const legacy=client(); assert.equal((await legacy.request("/api/auth/two-factor/verify-totp",{code:totp(adminFactor.totpURI)})).status,401);
+  assert.notEqual((await legacy.request("/api/auth/two-factor/verify-backup-code",{code:adminFactor.backupCodes[0]})).status,200);
+  success("Turnstile is mandatory; enrolled users sign in without OTP; old factor routes cannot sign in");
   assert.notEqual((await admin.request("/api/data",{op:"user",data:{name:"Rejected",email:"student@demo.psits.test",password:pass(),role:"STUDENT",number:"QA-0"}})).status,200);
   const people=[];
   for (const [role,label] of [["FACULTY","Teacher"],["STUDENT","Student"]]) {
@@ -97,11 +93,33 @@ try {
   success("teacher/student accounts, mandatory password replacement, own MFA, role permissions, and atomic multi-day availability");
   const wrongOrigin=await fetch(base+"/api/data",{method:"POST",headers:{Origin:"https://untrusted.invalid","Content-Type":"application/json"},body:JSON.stringify({op:"program",data:{name:"Forbidden"}})});
   assert.equal(wrongOrigin.status,403);
-  const rollback=client(); await rollback.request("/api/auth/sign-in/email",coordinator);
-  for(let i=0;i<5;i++) assert.notEqual((await rollback.request("/api/auth/two-factor/verify-totp",{code:"000000"})).status,200);
-  assert.equal((await rollback.request("/api/auth/two-factor/verify-totp",{code:totp(adminFactor.totpURI)})).status,429);
-  await db.twoFactor.updateMany({where:{userId:(await db.user.findUnique({where:{email:coordinator.email}})).id},data:{failedVerificationCount:0,lockedUntil:null}});
-  success("cross-origin mutation rejection and persisted authenticator lockout after repeated bad codes");
+  const recovery=client(), recoveryCode=totp(adminFactor.totpURI), nextPassword=pass();
+  const recover=(code,password=nextPassword)=>recovery.request("/api/account/recover",{email:coordinator.email,code,password});
+  const crossOrigin=await fetch(base+"/api/account/recover",{method:"POST",headers:{Origin:"https://untrusted.invalid","Content-Type":"application/json","x-captcha-response":"XXXX.DUMMY.TOKEN.XXXX"},body:JSON.stringify({email:coordinator.email,code:recoveryCode,password:nextPassword})});
+  assert.equal(crossOrigin.status,403);
+  assert.equal((await recover("111111" === recoveryCode ? "222222" : "111111")).status,400);
+  assert.equal((await recover(recoveryCode,coordinator.password)).status,400);
+  assert.equal((await recover(recoveryCode)).status,400,"verified reset codes cannot be reused");
+  // Wait for a new time step after the deliberately consumed code.
+  await new Promise(resolve=>setTimeout(resolve,31000-Date.now()%30000));
+  const freshCode=totp(adminFactor.totpURI);
+  const parallel=await Promise.all([recover(freshCode),recover(freshCode)]);
+  assert.equal(parallel.filter(r=>r.status===200).length,1,"exactly one concurrent reset succeeds");
+  assert.equal((await admin.request("/api/data")).status,401,"all existing sessions revoked");
+  assert.equal((await challenge.request("/api/data")).status,401);
+  const newLogin=client(); assert.equal((await newLogin.request("/api/auth/sign-in/email",{email:coordinator.email,password:nextPassword})).status,200);
+  assert.equal((await newLogin.request("/api/data")).status,200);
+  const oldLogin=client(); assert.notEqual((await oldLogin.request("/api/auth/sign-in/email",coordinator)).status,200);
+  const history=await db.passwordHistory.findMany({where:{userId:(await db.user.findUnique({where:{email:coordinator.email}})).id}});
+  assert.equal(history.length,1); assert(!history[0].password.includes(coordinator.password));
+  assert.notEqual((await newLogin.request("/api/auth/change-password",{currentPassword:nextPassword,newPassword:coordinator.password})).status,200);
+  coordinator.password=nextPassword;
+  const unknown=client();
+  for(let i=0;i<5;i++) assert.equal((await unknown.request("/api/account/recover",{email:"unknown@scheduler-qa.ac",code:"000000",password:pass()})).status,400);
+  // Use fetch directly: the generic verifier's 429 retry is deliberately bypassed.
+  const limited=await fetch(base+"/api/account/recover",{method:"POST",headers:{Origin:base,"Content-Type":"application/json","x-captcha-response":"XXXX.DUMMY.TOKEN.XXXX"},body:JSON.stringify({email:"unknown@scheduler-qa.ac",code:"000000",password:pass()})});
+  assert.equal(limited.status,429);
+  success("authenticator-only recovery, fresh passwords, code replay/concurrency rejection, session revocation, persistent throttling, and origin checks");
   await mkdir("tmp", { recursive: true });
   await writeFile(process.env.QA_ACCOUNTS_FILE ?? "tmp/real-auth-qa-accounts.json",JSON.stringify({coordinator:{...coordinator,totpURI:adminFactor.totpURI},people}));
   success("QA credentials saved only in ignored local test artifacts");

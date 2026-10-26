@@ -28,7 +28,7 @@ export function SignOutButton({ className, icon = false }: { className?: string;
       onCancel={(e) => { if (busy) e.preventDefault(); }}
       onClick={(e) => { if (e.target === e.currentTarget && !busy) dialog.current?.close(); }}>
       <h2 id="sign-out-title">Are you sure you want to sign out?</h2>
-      <p id="sign-out-description">You’ll need your password and authenticator code to sign in again.</p>
+      <p id="sign-out-description">You’ll need your email, password, and the security check to sign in again.</p>
       {error && <div className="error" role="alert">{error}</div>}
       <div className="sign-out-actions">
         <button type="button" autoFocus disabled={busy} onClick={() => dialog.current?.close()}>Cancel</button>

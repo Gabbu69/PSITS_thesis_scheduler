@@ -2,6 +2,7 @@ import { PublicError, calendarDate, clockTime, studentNumber } from "./validatio
 import { publicSnapshot, snapshotIncludes } from "./snapshots";
 import { z } from "zod";
 import { hashPassword } from "better-auth/crypto";
+import { freshPassword, savePassword } from "./passwords";
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { coordinator, type Actor } from "./access";
@@ -252,11 +253,10 @@ export async function mutateRecord(u: Actor, op: string, input: unknown) {
       if (d.password) {
         if (d.password.length < 12)
           throw new PublicError("Password must contain at least 12 characters");
-        await tx.account.updateMany({
-          where: { userId: d.id, providerId: "credential" },
-          data: { password: await hashPassword(d.password) },
-        });
-        await tx.authSession.deleteMany({ where: { userId: d.id } });
+        const account = await tx.account.findFirstOrThrow({ where: { userId: d.id, providerId: "credential" } });
+        if (!account.password || !await freshPassword(tx, d.id, account.password, d.password))
+          throw new PublicError("Use a fresh password different from the current and last five passwords.");
+        await savePassword(tx, { ...account, password: account.password }, await hashPassword(d.password));
         await tx.user.update({ where: { id: d.id }, data: { mustChangePassword: true } });
       }
     } else if (op === "groupDetails") {

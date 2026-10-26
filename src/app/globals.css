@@ -2624,3 +2624,5 @@ td small {
 .sign-out-actions { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
 .sign-out-actions button { min-height: 48px; }
 @media(max-width:480px) { .sign-out-dialog { padding: 24px; } .sign-out-actions button { flex: 1; } }
+.turnstile-check { min-width: 0; min-height: 65px; }
+.turnstile-check > div { max-width: 100%; }

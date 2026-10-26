@@ -10,7 +10,7 @@ The workspace starts empty. There are no shared demo logins, sample students, pr
 
 1. The app owner sets a private random `SETUP_KEY` (at least 32 characters).
 2. Open `/setup`. Enter the key, the actual college name, and the first coordinator’s name, email, and chosen password.
-3. Sign in and connect an authenticator app. Scan the QR code, enter its six-digit code, and save the recovery codes.
+3. Sign in and connect an authenticator app. Scan the QR code and enter its six-digit code to enable forgotten-password recovery.
 4. In **College setup**, add the actual programs, sections, academic term, defense stages, dates, and requirements.
 5. In **Accounts**, add real teacher/student accounts. Give each person their temporary password privately. Each person chooses a personal password and connects their own authenticator at first sign-in.
 6. Add actual groups and committee assignments, rooms and room availability. Teachers and students submit their own available times.
@@ -26,15 +26,17 @@ The setup key stops working once the first account exists. Public sign-up is dis
 
 Group creation has two short steps. Weekly availability accepts multiple days at once. Less frequent group changes, scheduling rules, day-by-day views, and activity history open on demand.
 
-## Authenticator security
+## Sign-in and password recovery
 
-Every role connects its own authenticator before accessing the workspace. Password sign-in produces a verification challenge for enrolled accounts; protected APIs and reports require the completed session. New accounts must first replace the coordinator-issued temporary password.
+Daily sign-in uses email, password, and a Cloudflare Turnstile security check. The authenticator is reserved for forgotten-password recovery. Every role connects a recovery authenticator once before using the workspace, and new users must replace their temporary passwords first. Existing authenticator pairings remain valid.
 
-QR codes are rendered locally. Secrets and backup codes are encrypted by the existing Better Auth two-factor plugin. Recovery codes work once. Repeated incorrect codes temporarily lock verification. Keep `BETTER_AUTH_SECRET` stable: changing it invalidates encrypted authenticator information. See the [Better Auth two-factor documentation](https://better-auth.com/docs/plugins/2fa).
+Choose **Forgot password?** on the login page, enter your email, a fresh password, its confirmation, and the latest six-digit authenticator code. Turnstile is validated on the server for both sign-in and recovery, including the expected hostname and action. Missing configuration or failed verification blocks the request. Recovery attempts are limited per email in PostgreSQL. Verified reset codes cannot be reused during their validity window, and concurrent attempts cannot reset twice with the same code. A successful reset revokes all sessions and requires a fresh sign-in; it does not sign the user in automatically.
 
-If a phone is lost, use a saved recovery code during sign-in. Keep the recovery codes in private storage. An enrolled user can check authenticator status or change their password through their profile menu. There is no unauthenticated bypass or coordinator button that silently removes MFA.
+Passwords must contain 12�128 characters and differ from the current and last five stored passwords. History starts when this release first changes a password; older passwords cannot be reconstructed. This policy also applies to signed-in password changes and coordinator-issued replacements. Only password hashes are stored in history, and the oldest hashes are removed beyond that limit.
 
-While signed in, open **Account security → Replace recovery codes** to create a fresh set after confirming your current password. Previous recovery codes stop working immediately. Download the new codes and acknowledge that you saved them before returning home. The authenticator remains connected. This uses Better Auth’s [backup-code regeneration endpoint](https://better-auth.com/docs/plugins/2fa#generating-backup-codes).
+QR codes are rendered locally. Better Auth encrypts authenticator secrets. Keep `BETTER_AUTH_SECRET` stable so existing pairings remain readable. Old authenticator/backup-code login routes are unavailable, and the signed-in security page no longer offers login recovery codes. If someone loses their phone, the coordinator must verify their identity and issue a fresh temporary password privately. Their existing authenticator stays connected; this release does not implement phone replacement.
+
+See [Turnstile setup and release checks](docs/TURNSTILE_AND_RECOVERY.md) and the [Better Auth enrollment documentation](https://better-auth.com/docs/plugins/2fa).
 
 ## Local installation
 
@@ -64,7 +66,7 @@ npm run typecheck
 npm run build
 ```
 
-`node --env-file=tmp/real-auth-test.env scripts/verify-real-auth.mjs` exercises first-account setup, mandatory password changes, authenticator setup/sign-in, recovery-code replay rejection, role scope, and multi-day availability. It refuses databases whose name does not contain `test` and servers outside localhost. Use an empty isolated test database and a private QA environment with its own `DATABASE_URL`, `BETTER_AUTH_URL`, and `SETUP_KEY`.
+`node --env-file=tmp/real-auth-test.env scripts/verify-real-auth.mjs` exercises first-account setup, mandatory password changes, recovery authenticator setup, Turnstile login, reset-code replay/concurrency rejection, role scope, and multi-day availability. It refuses databases whose name does not contain `test` and servers outside localhost. Use an empty isolated test database and a private QA environment with its own `DATABASE_URL`, `BETTER_AUTH_URL`, and `SETUP_KEY`.
 
 The original fictional scheduling fixtures are restricted to isolated testing: `ALLOW_TEST_FIXTURES=1 npm run db:test-fixtures` also requires a database name containing `test` or `ci`. Never run legacy workflow verifiers against college records. CI uses a separate test database. See [current usability and security verification](docs/USABILITY_AND_REAL_ACCOUNTS.md).
 
@@ -80,7 +82,7 @@ The linked Vercel project uses the existing Neon PostgreSQL database. Apply revi
 
 ## PSITS user guide
 
-The eight-page [PSITS usage guide](output/pdf/PSITS_Thesis_Scheduler_User_Guide.pdf) covers sign-in and authenticator setup, student and teacher workflows, coordinator setup and scheduling, reports, changes, sign-out confirmation, and troubleshooting. It contains no login credentials or private setup keys.
+The existing eight-page [PSITS usage guide](output/pdf/PSITS_Thesis_Scheduler_User_Guide.pdf) predates this authentication change; use the current sign-in/recovery instructions above. It also covers student and teacher workflows, coordinator setup and scheduling, reports, changes, sign-out confirmation, and troubleshooting. It contains no login credentials or private setup keys.
 
 Signing out now asks **Are you sure you want to sign out?** Choose **Cancel** to keep the session or **Sign out** to confirm. This applies in the workspace and during password/authenticator setup.
 
