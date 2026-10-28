@@ -15,6 +15,7 @@
     "db:seed": "node --env-file=.env --import tsx prisma/seed.ts",
     "db:test-fixtures": "node --env-file=.env --import tsx tests/fixtures/seed.ts",
     "db:local": "node scripts/local-postgres.mjs",
+    "db:sample-ryan": "node --env-file=.env --import tsx scripts/add-ryan-local.ts",
     "verify": "node --env-file=.env --import tsx scripts/verify-workflow.ts"
   },
   "dependencies": {

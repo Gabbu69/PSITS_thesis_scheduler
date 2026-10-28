@@ -38,3 +38,11 @@ The additive migration is `202610280001_faculty_class_timetables`. Regenerate th
 - Run `npm run typecheck` and `npm run build` before release. Check mobile, tablet, desktop, keyboard access, failure/retry, print output, and the existing sign-in and recovery flows.
 
 The first release supports manual weekly class entry. It does not import spreadsheets or model holiday/class cancellation exceptions. Regular teaching locations are descriptive; this feature protects faculty time rather than reserving defense rooms for classes.
+
+## Optional Ryan Gonzaga local sample
+
+Run `npm run db:sample-ryan -- --confirm-local-demo` after local migrations and coordinator setup to create the user-requested temporary Ryan Gonzaga faculty account and publish eight provisional weekly entries transcribed from the supplied image. This is an opt-in local sample, never part of builds, migrations, or production seeding. The script refuses non-local database hosts and refuses to overwrite an existing Ryan account.
+
+The sample uses the reserved placeholder address `ryan.gonzaga.placeholder@example.invalid`, an unverified email, and a randomly generated hashed password. Initial credentials are written only to the Git-ignored `tmp/Ryan_Gonzaga_Local_Account_PRIVATE.txt`; never commit or share that file publicly. Password change and recovery-authenticator enrollment remain required. Through **Accounts → Manage**, the coordinator can replace the email and issue a fresh temporary password while preserving the faculty identity and timetable.
+
+The academic term is explicitly provisional, with effective dates October 28–December 31, 2026. Subject codes, sections, and rooms are unconfirmed placeholders. Confirm those details and dates before using this timetable as an official schedule. The Wednesday webinar in the image is excluded from regular teaching classes.
