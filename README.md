@@ -4,6 +4,8 @@ A college defense scheduler for coordinators, teachers, and students. Uses Next.
 
 Live application: [PSITS Thesis Scheduler](https://psits-thesis-scheduler.vercel.app).
 
+Visitors can view **Faculty Class Schedules** at `/` or `/class-schedules` without signing in. This public board has no faculty login button or link. Faculty manually open `/faculty/login`, which reuses the existing login page; `/login` remains available for existing account and recovery links. Faculty maintain their classes under **Class schedules** and submit them for coordinator review. Saved and published class times protect faculty from conflicting thesis defenses. See [faculty timetable workflows and release notes](docs/FACULTY_CLASS_TIMETABLES.md).
+
 ## First use
 
 The workspace starts empty. There are no shared demo logins, sample students, prefilled groups, or pretend schedules.
