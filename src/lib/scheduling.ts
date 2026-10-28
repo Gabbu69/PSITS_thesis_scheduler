@@ -294,7 +294,7 @@ export async function flagAffected(tx: Tx, user: Actor) {
     cs = await candidates(tx);
   ctx.bookings = ctx.bookings.filter((b) => b.status !== "DRAFT");
   const sessions = await tx.defenseSession.findMany({
-    where: { status: "PUBLISHED" },
+    where: { status: { in: ["DRAFT", "PUBLISHED"] } },
   });
   for (const s of sessions) {
     const c = cs.find((c) => c.attemptId === s.attemptId);
@@ -307,11 +307,12 @@ export async function flagAffected(tx: Tx, user: Actor) {
       });
     }
     // Notify once per transition into review, and clear the flag when repaired.
-    if (attention && !s.attention) {
+    if (attention && !s.attention && s.status === "PUBLISHED") {
       const admins = await tx.user.findMany({ where: { role: "COORDINATOR" } });
+      const participants = await tx.participant.findMany({ where: { sessionId: s.id }, select: { userId: true } });
       await notify(
         tx,
-        admins.map((a) => a.id),
+        [...admins.map((a) => a.id), ...participants.map((p) => p.userId)],
         `Defense ${c?.code ?? s.id} requires review: ${errors.join("; ")}. Reservation retained.`,
       );
     }
@@ -320,6 +321,6 @@ export async function flagAffected(tx: Tx, user: Actor) {
     tx,
     user,
     "AVAILABILITY_OR_RULE_REVIEW",
-    "Published sessions rechecked; reservations retained",
+    "Draft and published sessions rechecked; reservations retained",
   );
 }

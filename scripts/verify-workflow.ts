@@ -188,14 +188,15 @@ async function verify() {
   assert.equal(rows[0].version, 2);
   assert.equal(rows[0].students.length, 3);
   assert.equal(rows[0].date, "2026-11-05");
-  await mkdir("output/pdf", { recursive: true });
+  const pdfOutput = process.env.VERIFY_PDF_OUTPUT_DIR ?? "output/pdf";
+  await mkdir(pdfOutput, { recursive: true });
   await writeFile(
-    "output/pdf/sample-group-schedule.pdf",
+    `${pdfOutput}/sample-group-schedule.pdf`,
     await pdfBuffer("College of Computing · Fictional Demo", rows, "group"),
   );
   const master = await reportRows(admin, new URLSearchParams());
   await writeFile(
-    "output/pdf/sample-master-schedule.pdf",
+    `${pdfOutput}/sample-master-schedule.pdf`,
     await pdfBuffer("College of Computing · Fictional Demo", master, "master"),
   );
   pass("Database-backed PDF generated with current version and all members");

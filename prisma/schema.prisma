@@ -28,6 +28,7 @@ model User {
   participants Participant[]
   auditEvents AuditEvent[]
   scheduleVersions ScheduleVersion[]
+  publishedTimetables ClassTimetableRevision[]
 }
 model AuthSession {
   id String @id
@@ -115,6 +116,7 @@ model Term {
   semester String
   groups ThesisGroup[]
   memberships Membership[]
+  classTimetables ClassTimetable[]
   @@unique([year, semester])
 }
 model Stage {
@@ -146,6 +148,46 @@ model Faculty {
   dailyLimit Int @default(4)
   weeklyLimit Int?
   assignments Assignment[]
+  classTimetables ClassTimetable[]
+}
+model ClassTimetable {
+  id String @id @default(cuid())
+  facultyId String
+  faculty Faculty @relation(fields: [facultyId], references: [id])
+  termId String
+  term Term @relation(fields: [termId], references: [id])
+  version Int @default(0)
+  revisions ClassTimetableRevision[]
+  @@unique([facultyId, termId])
+}
+model ClassTimetableRevision {
+  id String @id @default(cuid())
+  timetableId String
+  timetable ClassTimetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  number Int
+  status String @default("DRAFT")
+  effectiveFrom String
+  effectiveTo String
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  publishedAt DateTime? @db.Timestamptz(3)
+  publisherId String?
+  publisher User? @relation(fields: [publisherId], references: [id])
+  meetings ClassMeeting[]
+  @@unique([timetableId, number])
+  @@index([status])
+}
+model ClassMeeting {
+  id String @id @default(cuid())
+  revisionId String
+  revision ClassTimetableRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  subjectCode String
+  subjectName String
+  section String
+  location String
+  weekday Int
+  startTime String
+  endTime String
+  @@index([revisionId])
 }
 model Student {
   id String @id @default(cuid())

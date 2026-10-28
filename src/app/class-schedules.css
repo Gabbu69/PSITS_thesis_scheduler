@@ -1,0 +1,116 @@
+/* Shared public board and authenticated timetable editor. */
+.login-layout { width: min(100%, 1540px); margin: auto; min-height: 100dvh; padding: 48px 32px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 410px); grid-template-areas: "board login"; gap: 36px; align-items: start; }
+.login-layout > .class-board { grid-area: board; }
+.login-layout.public-schedules-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "board"; }
+.login-card { grid-area: login; width: 100%; position: sticky; top: 32px; }
+.login-board-link { min-height: 44px; }
+.class-board { min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 20px; overflow: clip; scroll-margin-top: 24px; }
+.class-board-header { padding: 32px 32px 24px; background: var(--soft); border-bottom: 1px solid var(--border); }
+.class-board-eyebrow { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: .8rem; font-weight: 700; letter-spacing: .1em; margin-bottom: 16px; }
+.class-board-header h2 { font-size: clamp(1.65rem, 3vw, 2.35rem); font-weight: 750; line-height: 1.15; letter-spacing: -.04em; margin: 0 0 12px; }
+.class-board-header p { font-size: 1rem; line-height: 1.6; }
+.class-board-note { display: flex; align-items: center; gap: 8px; color: var(--muted); margin-top: 18px; font-size: .875rem; line-height: 1.5; }
+.class-board-note svg { flex-shrink: 0; }
+.class-board-controls { display: grid; gap: 18px; padding: 24px 32px; border-bottom: 1px solid var(--border); }
+.class-board label, .class-editor-panel label, .class-publish-dialog label { display: grid; gap: 8px; font-size: 1rem; font-weight: 600; min-width: 0; }
+.class-board input, .class-board select, .class-editor-panel input, .class-editor-panel select { min-height: 46px; width: 100%; min-width: 0; font-size: 1rem; }
+.class-search-input { position: relative; display: flex; align-items: center; }
+.class-search-input svg { position: absolute; left: 13px; color: var(--muted); pointer-events: none; }
+.class-search-input input { padding-left: 40px; }
+.class-filter-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr); gap: 12px; }
+.class-board-actions, .class-editor-actions, .class-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.class-board button, .class-editor-panel button, .class-publish-dialog button { min-height: 44px; font-size: .9375rem; }
+.class-board-actions button[aria-pressed="true"] { background: var(--soft); border-color: var(--blue); color: var(--text); }
+.class-board > .error { margin: 20px 32px 0; }
+.class-board-results { padding: 0 32px 24px; }
+.class-result-count { font-size: .9rem; margin: 20px 0; color: var(--muted); }
+.class-faculty-card { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+.class-faculty-card > header { background: var(--surface); padding: 20px; }
+.class-faculty-name { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.class-faculty-name svg { color: var(--blue); flex-shrink: 0; margin-top: 2px; }
+.class-faculty-name h3 { font-size: 1.125rem; line-height: 1.4; font-weight: 700; overflow-wrap: anywhere; }
+.class-faculty-card header p { font-size: .9375rem; margin-bottom: 6px; }
+.class-faculty-card header small { display: block; font-size: .8125rem; color: var(--muted); line-height: 1.6; }
+.class-meeting-list, .class-edit-list { list-style: none; margin: 0; padding: 0; }
+.class-meeting-list > li { padding: 18px 20px; display: grid; grid-template-columns: minmax(145px, .8fr) minmax(0, 1.5fr); gap: 16px; border-top: 1px solid var(--border); }
+.class-meeting-time, .class-meeting-subject { display: grid; align-content: start; gap: 6px; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+.class-meeting-list strong { font-size: .9375rem; font-weight: 650; }
+.class-meeting-list span { font-size: .875rem; color: var(--muted); }
+.class-meeting-subject strong span { color: var(--text); font-size: inherit; font-weight: 500; }
+.class-board-footer { padding: 20px 32px; background: var(--surface); border-top: 1px solid var(--border); color: var(--muted); font-size: .875rem; line-height: 1.6; }
+.class-empty { display: grid; justify-items: center; text-align: center; gap: 12px; padding: 40px 16px; }
+.class-empty svg { color: var(--blue); }
+.class-empty h3 { font-size: 1.125rem; font-weight: 650; }
+.class-empty p { max-width: 48ch; color: var(--muted); line-height: 1.6; }
+.class-management { display: grid; gap: 28px; min-width: 0; }
+.class-editor-panel { min-width: 0; }
+.class-editor-panel .panel-title { flex-wrap: wrap; gap: 12px; }
+.class-editor-panel .panel-title h2 { font-size: 1.4rem; line-height: 1.35; }
+.class-editor-selectors, .class-editor-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 20px 0; }
+.class-editor-body { display: grid; gap: 20px; }
+.class-editor-status { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
+.class-editor-status > span:not(.badge), .class-guidance { color: var(--muted); font-size: .9375rem; line-height: 1.6; }
+.class-editor-body h3 { font-size: 1.125rem; font-weight: 650; }
+.class-editor-dates { margin: 0; max-width: 640px; }
+.class-edit-list > li { padding: 18px 0; display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); }
+.class-edit-list > li > div:first-child { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.class-edit-list span { font-size: .9375rem; color: var(--muted); }
+.class-row-actions { align-self: start; flex-shrink: 0; }
+.class-meeting-form { padding: 24px; display: grid; gap: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.class-meeting-form h4 { font-size: 1.1rem; font-weight: 650; }
+.class-meeting-form > fieldset { border: 0; padding: 0; min-width: 0; }
+.class-meeting-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.class-weekdays { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; border: 0; padding: 0; }
+.class-weekdays legend { margin-bottom: 10px; font-weight: 600; }
+.class-editor-panel .class-weekdays label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.class-weekdays label:has(input:checked) { border-color: var(--blue); background: var(--soft); }
+.class-editor-panel .class-weekdays input, .class-retire-check input { width: 20px; height: 20px; min-height: 20px; flex-shrink: 0; }
+.class-change-review { display: grid; gap: 12px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow-wrap: anywhere; }
+.class-change-review p { font-size: .9375rem; line-height: 1.6; }
+.class-conflict-warning { border-left: 4px solid var(--amber); padding: 12px 16px; background: var(--card); }
+.class-conflict-warning ul { padding-left: 20px; margin: 12px 0; list-style: disc; }
+.class-conflict-warning li { margin: 8px 0; }
+.class-review-queue { padding: 16px; background: var(--soft); border-radius: 10px; display: grid; gap: 12px; }
+.class-review-queue > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.class-history article { padding: 16px 0; border-top: 1px solid var(--border); }
+.class-history h4 { font-weight: 650; margin-bottom: 8px; }
+.class-history p { font-size: .9375rem; line-height: 1.6; }
+.class-publish-dialog { margin: auto; width: min(760px, calc(100% - 32px)); max-height: calc(100dvh - 48px); overflow: auto; padding: 28px; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 16px; }
+.class-publish-dialog::backdrop { background: #071c32a6; }
+.class-publish-dialog h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 16px; }
+.class-publish-dialog > p { line-height: 1.6; margin-bottom: 20px; }
+.class-publish-dialog .class-editor-actions { margin-top: 24px; }
+.class-publish-dialog .class-retire-check { display: flex; gap: 12px; align-items: flex-start; margin-top: 20px; line-height: 1.6; font-weight: 500; }
+.class-retire-check input { margin-top: 4px; }
+@media (max-width: 1100px) {
+  .login-layout { padding: 32px 20px; gap: 24px; grid-template-columns: minmax(0, 1fr) 340px; }
+  .class-filter-grid { grid-template-columns: minmax(0, 1fr); }
+  .class-board-header, .class-board-controls, .class-board-footer { padding: 24px; }
+  .class-board-results { padding: 0 24px 24px; }
+  .class-meeting-list > li { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .class-meeting-time { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+}
+@media (max-width: 800px) {
+  .login-layout { display: flex; flex-direction: column; padding: 24px 16px; }
+  .login-card { position: static; width: min(100%, 460px); align-self: center; }
+  .login-layout > .class-board { width: 100%; }
+  .class-edit-list > li { flex-wrap: wrap; }
+}
+@media (max-width: 600px) {
+  .class-board-header, .class-board-controls, .class-board-footer { padding: 20px; }
+  .class-board-results { padding: 0 16px 16px; }
+  .class-faculty-card > header, .class-meeting-list > li { padding: 16px; }
+  .class-editor-selectors, .class-editor-dates, .class-meeting-fields { grid-template-columns: minmax(0, 1fr); }
+  .class-meeting-form, .class-change-review { padding: 16px; }
+  .class-board-actions { gap: 8px; }
+  .class-board > .error { margin: 16px; }
+}
+@media print {
+  body:has(#class-schedules-board) { visibility: hidden; background: white; }
+  #class-schedules-board, #class-schedules-board * { visibility: visible; }
+  #class-schedules-board { position: absolute; left: 0; top: 0; width: 100%; border: 0; color: #111; background: white; overflow: visible; }
+  #class-schedules-board .class-board-controls, .login-card, .class-editor-panel { display: none; }
+  #class-schedules-board .class-faculty-card { break-inside: avoid; }
+  #class-schedules-board * { color: #111; background: white; box-shadow: none; }
+  #class-schedules-board .class-board-results { padding: 0 20px; }
+}

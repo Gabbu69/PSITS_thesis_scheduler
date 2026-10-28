@@ -35,6 +35,7 @@ import {
 import { local } from "@/lib/constraints";
 import { SimpleHome, SimpleAvailability, Accounts } from "./simple-workflows";
 import { SignOutButton } from "./sign-out-button";
+import { ClassTimetableManager } from "./class-timetable-manager";
 type Data = any;
 type Field = {
   name: string;
@@ -54,6 +55,7 @@ const nav = [
   ["/rooms", "Rooms", DoorOpen],
   ["/drafts", "Create schedule", Sparkles],
   ["/calendar", "Schedule", CalendarDays],
+  ["/class-schedules", "Class schedules", CalendarDays],
   ["/notifications", "Notifications", Bell],
   ["/waiting", "Waiting list", TriangleAlert],
   ["/reports", "Reports", FileText],
@@ -285,9 +287,9 @@ export function Workspace() {
   const d = data,
     admin = d.user.role === "COORDINATOR",
     faculty = d.user.role === "FACULTY";
-  const allowed = admin ? nav : nav.filter(([p]) => ["/", "/groups", "/availability", "/calendar", "/notifications", "/reports", ...(faculty ? ["/faculty"] : [])].includes(p));
+  const allowed = admin ? nav : nav.filter(([p]) => ["/", "/groups", "/availability", "/calendar", "/class-schedules", "/notifications", "/reports", ...(faculty ? ["/faculty"] : [])].includes(p));
   const roleLabel = (p: string, label: string) => !admin ? ({ "/groups": faculty ? "My groups" : "My group", "/availability": "My availability", "/calendar": "My schedule", "/faculty": "My workload" } as Record<string,string>)[p] ?? label : label;
-  const mainPaths = admin ? ["/", "/groups", "/calendar", "/availability", "/accounts", "/settings"] : ["/", "/groups", "/availability", "/calendar", ...(faculty ? ["/faculty"] : [])];
+  const mainPaths = admin ? ["/", "/groups", "/calendar", "/class-schedules", "/availability", "/accounts", "/settings"] : ["/", "/groups", "/availability", "/calendar", "/class-schedules", ...(faculty ? ["/faculty"] : [])];
   const visibleNav = mainPaths.map((p) => allowed.find(([url]) => url === p)!);
   const moreNav = allowed.filter(([p]) => !mainPaths.includes(p) && !["/notifications", "/drafts"].includes(p));
   const page = roleLabel(path, nav.find((n) => n[0] === path)?.[1] ?? "Page unavailable");
@@ -1484,6 +1486,7 @@ export function Workspace() {
               </details>
             </>
           )}
+          {path === "/class-schedules" && <ClassTimetableManager role={d.user.role} />}
           {path === "/calendar" && (
             <>
               <div className="toolbar">

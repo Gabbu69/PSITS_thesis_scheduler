@@ -2,13 +2,15 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { TurnstileWidget } from "./turnstile-widget";
+import { ClassScheduleBoard } from "./class-schedule-board";
 export function LoginForm({ setupAvailable, message, siteKey }: { setupAvailable: boolean; message: string; siteKey: string }) {
   const [error, setError] = useState(""), [busy, setBusy] = useState(false), [show, setShow] = useState(false);
   const [token, setToken] = useState(""), [attempt, setAttempt] = useState(0);
-  return <main className="entry-page"><section className="entry-card">
+  return <main className="login-layout"><section className="entry-card login-card" aria-labelledby="login-heading">
     <img src="/logo.jpg" className="entry-logo" alt="PSITS" />
-    <p className="entry-brand">Thesis Scheduler</p><h1>Sign in</h1>
+    <p className="entry-brand">Thesis Scheduler</p><h1 id="login-heading">Sign in</h1>
     <p>Use the account provided by your coordinator.</p>
+    <a className="text-link login-board-link" href="#class-schedules-board">View faculty schedules</a>
     {message && <div className="success" role="status">{message}</div>}
     <form onSubmit={async (e) => {
       e.preventDefault(); if (busy || !token) return; setBusy(true); setError("");
@@ -34,5 +36,5 @@ export function LoginForm({ setupAvailable, message, siteKey }: { setupAvailable
     <a className="text-link" href="/forgot-password">Forgot password?</a>
     <details><summary>Need an account?</summary><p>Contact your thesis coordinator for your own account. Your authenticator is used only when resetting a forgotten password.</p></details>
     {setupAvailable && <a className="text-link" href="/setup">Set up the first coordinator</a>}
-  </section></main>;
+  </section><ClassScheduleBoard /></main>;
 }

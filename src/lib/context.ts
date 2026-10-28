@@ -1,9 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { db } from "./db";
 import type { Candidate, Context } from "./constraints";
+import { protectedClassWindows } from "./class-timetable-windows";
 export type Tx = Prisma.TransactionClient;
 export async function context(tx: Tx = db): Promise<Context> {
-  const [rules, windows, rooms, sessions] = await Promise.all([
+  const [rules, windows, rooms, sessions, classes] = await Promise.all([
     tx.rules.findUniqueOrThrow({ where: { id: 1 } }),
     tx.availability.findMany(),
     tx.room.findMany(),
@@ -11,10 +12,11 @@ export async function context(tx: Tx = db): Promise<Context> {
       where: { status: { not: "CANCELLED" } },
       include: { participants: true },
     }),
+    protectedClassWindows(tx),
   ]);
   return {
     rules,
-    windows,
+    windows: [...windows, ...classes],
     rooms,
     bookings: sessions.map((s) => ({
       ...s,
